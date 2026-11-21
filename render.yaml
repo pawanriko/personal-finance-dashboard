@@ -29,3 +29,17 @@ services:
         sync: false
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
         sync: false
+      # InsForge OAuth (Google/GitHub sign-in): fill these in after
+      # creating the InsForge project (see README "Google/GitHub
+      # sign-in (InsForge)"). The buttons stay hidden until both
+      # VITE_ vars are present at build time; backend + frontend use
+      # the same project URL. Flip ENABLED to "true" only once the
+      # project exists.
+      - key: INSFORGE_AUTH_ENABLED
+        value: "false"
+      - key: INSFORGE_BASE_URL
+        sync: false
+      - key: VITE_INSFORGE_URL
+        sync: false
+      - key: VITE_INSFORGE_ANON_KEY
+        sync: false

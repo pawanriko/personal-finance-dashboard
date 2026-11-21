@@ -20,6 +20,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
+from .insforge_auth import (
+    InsforgeAuthError,
+    InsforgeEmailCollision,
+    resolve_user,
+    verify_token,
+)
 from .models import (
     ZERO,
     Account,
@@ -493,6 +499,49 @@ def login_view(request):
         return Response(
             {"detail": "Invalid username or password."},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+    login(request, user)
+    return Response(UserSerializer(user).data)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def insforge_login_view(request):
+    """Log in with an InsForge access token (Google/GitHub OAuth).
+
+    The React app signs the user in against InsForge in the browser
+    and sends the resulting access token here. The token is verified
+    once (RS256 vs the project's JWKS) and the Django user is found
+    or created by ``insforge_sub``; then a normal Django session
+    starts, exactly as after a password login. The token itself is
+    never logged and never stored.
+
+    Dormant until configured: with INSFORGE_AUTH_ENABLED off (or no
+    INSFORGE_BASE_URL) this answers 503. Email collision with an
+    unlinked Django account answers 409 — the user signs in with
+    their password instead; the link is never made silently.
+    """
+    if not getattr(
+        settings, "INSFORGE_AUTH_ENABLED", False
+    ) or not getattr(settings, "INSFORGE_BASE_URL", ""):
+        return Response(
+            {"detail": "InsForge sign-in is not enabled."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    token = request.data.get("access_token")
+    if not token or not isinstance(token, str):
+        return Response(
+            {"detail": "access_token is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        user = resolve_user(verify_token(token))
+    except InsforgeEmailCollision as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+    except InsforgeAuthError:
+        return Response(
+            {"detail": "Invalid or expired InsForge token."},
+            status=status.HTTP_401_UNAUTHORIZED,
         )
     login(request, user)
     return Response(UserSerializer(user).data)

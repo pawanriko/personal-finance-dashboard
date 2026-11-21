@@ -168,6 +168,26 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
+# --- InsForge OAuth (Google/GitHub sign-in, login-time bridge) --------
+# InsForge is used ONLY at login: the browser SDK signs the user in
+# against InsForge and POSTs the access token to /api/auth/insforge/,
+# where it is verified once (RS256 vs the project's JWKS) and a normal
+# Django session starts. The JSON API itself stays session+CSRF only —
+# no Bearer tokens, no middleware, no cutover flag. With
+# INSFORGE_AUTH_ENABLED off (the default) the endpoint answers 503 and
+# the frontend hides the OAuth buttons. See INSFORGE-PLAN.md.
+INSFORGE_AUTH_ENABLED = (
+    os.environ.get("INSFORGE_AUTH_ENABLED", "false").lower() == "true"
+)
+# The InsForge project URL (the oss_host), e.g.
+# https://<appkey>.us-east.insforge.app — no trailing slash needed.
+INSFORGE_BASE_URL = os.environ.get("INSFORGE_BASE_URL", "").rstrip("/")
+# How long the fetched JWKS document is cached (seconds); a rotated
+# key is still picked up at once via the unknown-kid refetch.
+INSFORGE_JWKS_CACHE_TTL = int(os.environ.get("INSFORGE_JWKS_CACHE_TTL", "3600"))
+# Clock-skew tolerance (seconds) when checking the token expiry.
+INSFORGE_JWT_LEEWAY = int(os.environ.get("INSFORGE_JWT_LEEWAY", "60"))
+
 # --- App-specific limits ----------------------------------------------------
 # CSV uploads: only .csv, at most 5 MB (enforced in the import view).
 CSV_UPLOAD_MAX_BYTES = int(os.environ.get("CSV_UPLOAD_MAX_BYTES", 5 * 1024 * 1024))

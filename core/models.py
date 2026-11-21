@@ -69,6 +69,34 @@ class Profile(models.Model):
         return f"Profile({self.user.username})"
 
 
+class InsforgeIdentity(models.Model):
+    """One row per Django user that has signed in via InsForge OAuth.
+
+    ``sub`` is the InsForge user id — the ``sub`` claim of the JWT.
+    It is the stable anchor: emails can change, the sub cannot.
+    ``email`` is a copy of the token's email at link time; the live
+    email always comes from the token. See core/insforge_auth.py.
+    """
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="insforge_identity"
+    )
+    sub = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="InsForge user id (the JWT 'sub' claim).",
+    )
+    email = models.EmailField(
+        blank=True,
+        default="",
+        help_text="Email from the InsForge token at link time.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"InsforgeIdentity({self.user.username}, {self.sub})"
+
+
 class Account(models.Model):
     """A bank account, wallet, or credit card owned by the user."""
 

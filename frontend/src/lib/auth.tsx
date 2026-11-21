@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, ApiError } from './api';
+import {
+  completeInsforgeSession,
+  insforgeSignOut,
+  isInsforgeConfigured,
+} from './insforge';
 import { queryClient } from './queryClient';
 import type { User } from './types';
 
@@ -9,6 +14,10 @@ interface AuthCtx {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
+  /** Complete a Google/GitHub sign-in: exchange the InsForge OAuth
+   * callback for a Django session. Throws when there is no InsForge
+   * session to complete. */
+  insforgeLogin: () => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -18,6 +27,7 @@ const AuthContext = createContext<AuthCtx>({
   loading: true,
   login: async () => {},
   register: async () => {},
+  insforgeLogin: async () => {},
   logout: async () => {},
   refresh: async () => {},
 });
@@ -62,6 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me);
   }
 
+  async function insforgeLogin() {
+    const token = await completeInsforgeSession();
+    if (!token) {
+      throw new Error(
+        'Google/GitHub sign-in did not return a session. Please try again.',
+      );
+    }
+    await api.get('/auth/csrf/');
+    const me = await api.post<User>('/auth/insforge/', {
+      access_token: token,
+    });
+    setUser(me);
+  }
+
   async function logout() {
     try {
       await api.post('/auth/logout/', {});
@@ -72,10 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Drop every cached query: the next login must not flash the previous
     // user's lists while its own refetch is in flight.
     queryClient.clear();
+    // Drop the InsForge session too (best effort, non-blocking —
+    // the Django logout above is what gates the app).
+    if (isInsforgeConfigured()) {
+      void insforgeSignOut();
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, insforgeLogin, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -6,12 +6,18 @@ transfers (never income/spending), recurring generation, categories,
 budgets, goals, CSV import/export, dashboard/reports, per-user isolation.
 """
 
+import json
+import time
 from datetime import date
 from decimal import Decimal
+from unittest import mock
 
+import jwt
+from cryptography.hazmat.primitives.asymmetric import rsa
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from jwt.algorithms import RSAAlgorithm
 from rest_framework.test import APIClient
 
 from .models import (
@@ -20,6 +26,7 @@ from .models import (
     Category,
     Goal,
     GoalContribution,
+    InsforgeIdentity,
     RecurringTransaction,
     Transaction,
     Transfer,
@@ -946,3 +953,142 @@ class IsolationTests(ApiTestCase):
             self.assertEqual(
                 self.client_b.get(url).data["results"], [], url
             )
+
+
+# ---------------------------------------------------------------------------
+# InsForge OAuth login (POST /api/auth/insforge/)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(
+    INSFORGE_AUTH_ENABLED=True,
+    INSFORGE_BASE_URL="https://test.insforge.app",
+)
+class InsforgeAuthTests(ApiTestCase):
+    """The login-time bridge: a verified InsForge JWT starts a Django
+    session. Tokens are minted here with a real RS256 keypair generated
+    in-test; the JWKS fetch is mocked (no network) so the real
+    signature/expiry/kid verification path is exercised.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls._private_key = rsa.generate_private_key(
+            public_exponent=65537, key_size=2048
+        )
+        cls._other_key = rsa.generate_private_key(
+            public_exponent=65537, key_size=2048
+        )
+        jwk = json.loads(
+            RSAAlgorithm.to_jwk(cls._private_key.public_key())
+        )
+        jwk.update({"kid": "test-key-1", "alg": "RS256", "use": "sig"})
+        cls._jwk = jwk
+
+    def setUp(self):
+        super().setUp()
+        self._jwks_patcher = mock.patch(
+            "core.insforge_auth._fetch_jwks", return_value=[self._jwk]
+        )
+        self._jwks_patcher.start()
+        self.addCleanup(self._jwks_patcher.stop)
+
+    def _mint(self, sub="insforge-sub-1", email="carol@example.com",
+              exp=None, kid="test-key-1", key=None, alg="RS256"):
+        now = int(time.time())
+        payload = {
+            "sub": sub,
+            "email": email,
+            "role": "authenticated",
+            "iat": now,
+            "exp": now + 900 if exp is None else exp,
+        }
+        if email is None:
+            del payload["email"]
+        return jwt.encode(
+            payload,
+            key if key is not None else self._private_key,
+            algorithm=alg,
+            headers={"kid": kid},
+        )
+
+    def _post_token(self, token):
+        return self.anon.post(
+            "/api/auth/insforge/", {"access_token": token}, format="json"
+        )
+
+    def test_valid_token_creates_user_and_starts_session(self):
+        res = self._post_token(self._mint())
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["username"], "carol")
+        self.assertIn("sessionid", res.cookies)
+        user = User.objects.get(username="carol")
+        self.assertTrue(hasattr(user, "profile"))
+        self.assertEqual(
+            Category.objects.filter(user=user, is_default=True).count(), 17
+        )
+        self.assertFalse(user.has_usable_password())
+        identity = InsforgeIdentity.objects.get(user=user)
+        self.assertEqual(identity.sub, "insforge-sub-1")
+        self.assertEqual(identity.email, "carol@example.com")
+
+    def test_same_token_twice_returns_same_user(self):
+        token = self._mint()
+        self.assertEqual(self._post_token(token).status_code, 200)
+        res = self._post_token(token)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["id"], User.objects.get(username="carol").id)
+        self.assertEqual(User.objects.filter(username="carol").count(), 1)
+        self.assertEqual(InsforgeIdentity.objects.count(), 1)
+
+    def test_session_works_after_insforge_login(self):
+        self.assertEqual(self._post_token(self._mint()).status_code, 200)
+        res = self.anon.get("/api/auth/me/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["username"], "carol")
+        res = self.anon.get("/api/dashboard/")
+        self.assertEqual(res.status_code, 200)
+
+    def test_expired_token_rejected(self):
+        # Expired well past the 60s clock-skew leeway (INSFORGE_JWT_LEEWAY).
+        token = self._mint(exp=int(time.time()) - 120)
+        self.assertEqual(self._post_token(token).status_code, 401)
+
+    def test_wrong_signature_rejected(self):
+        token = self._mint(key=self._other_key)
+        self.assertEqual(self._post_token(token).status_code, 401)
+
+    def test_hs256_token_rejected(self):
+        token = self._mint(alg="HS256", key="shared-secret")
+        self.assertEqual(self._post_token(token).status_code, 401)
+
+    def test_unknown_kid_rejected(self):
+        token = self._mint(kid="rotated-away-key")
+        self.assertEqual(self._post_token(token).status_code, 401)
+
+    def test_malformed_token_rejected(self):
+        self.assertEqual(self._post_token("not-a-jwt").status_code, 401)
+
+    def test_missing_token_returns_400(self):
+        res = self.anon.post("/api/auth/insforge/", {}, format="json")
+        self.assertEqual(res.status_code, 400)
+
+    def test_email_collision_returns_409(self):
+        # alice@example.com already belongs to an unlinked Django user.
+        token = self._mint(sub="insforge-sub-2", email="alice@example.com")
+        res = self._post_token(token)
+        self.assertEqual(res.status_code, 409)
+        self.assertFalse(
+            InsforgeIdentity.objects.filter(sub="insforge-sub-2").exists()
+        )
+
+    def test_token_without_email_still_creates_user(self):
+        res = self._post_token(self._mint(email=None))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["username"], "user")
+
+    def test_disabled_flag_returns_503(self):
+        with override_settings(INSFORGE_AUTH_ENABLED=False):
+            res = self._post_token(self._mint())
+        self.assertEqual(res.status_code, 503)
