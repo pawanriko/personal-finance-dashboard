@@ -17,8 +17,7 @@ import { api, qs } from '../lib/api';
 import type { ReportsSummary } from '../lib/types';
 import { fmtDate, fmtMoney, fmtMonthLabel, monthEnd, monthStart, todayIso } from '../lib/utils';
 import { EmptyState, Spinner, Stat } from '../components/ui';
-
-const PIE_COLORS = ['#0f766e', '#0284c7', '#7c3aed', '#db2777', '#ea580c', '#ca8a04', '#16a34a', '#475569'];
+import { CATEGORY_COLORS, EXPENSE_FILL, INCOME_FILL, MoneyTooltip } from '../components/charts';
 
 function deltaLabel(current: string, previous: string): string {
   const c = Number(current);
@@ -72,11 +71,11 @@ export function ReportsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Reports</h1>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          <h1 className="heading-6">Reports</h1>
+          <p className="body-6" style={{ color: 'var(--muted)' }}>
             Summaries for any date range, compared with the previous period of
             the same length.
           </p>
@@ -117,34 +116,53 @@ export function ReportsPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-            <Stat label="Income" value={fmtMoney(query.data.income)} sub={deltaLabel(query.data.income, query.data.previous_period.income)} tone="good" />
-            <Stat label="Expenses" value={fmtMoney(query.data.expenses)} sub={deltaLabel(query.data.expenses, query.data.previous_period.expenses)} tone="bad" />
+            <Stat label="Income" value={fmtMoney(query.data.income)} sub={deltaLabel(query.data.income, query.data.previous_period.income)} tone="good" icon="↑" countTo={Number(query.data.income)} format={(n) => fmtMoney(n.toFixed(2))} />
+            <Stat label="Expenses" value={fmtMoney(query.data.expenses)} sub={deltaLabel(query.data.expenses, query.data.previous_period.expenses)} tone="bad" icon="↓" countTo={Number(query.data.expenses)} format={(n) => fmtMoney(n.toFixed(2))} />
             <Stat
               label="Net"
               value={fmtMoney(query.data.net)}
               sub={`${fmtDate(query.data.period.start)} – ${fmtDate(query.data.period.end)}`}
               tone={Number(query.data.net) >= 0 ? 'good' : 'bad'}
+              icon="⇄"
+              countTo={Number(query.data.net)}
+              format={(n) => fmtMoney(n.toFixed(2))}
             />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="card p-4">
-              <h2 className="text-sm font-semibold">Spending by category</h2>
+              <h2 className="title-4">Spending by category</h2>
               {pieData.length === 0 ? (
-                <p className="py-8 text-center text-sm" style={{ color: 'var(--muted)' }}>No expenses in this period.</p>
+                <p className="body-6 py-8 text-center" style={{ color: 'var(--muted)' }}>No expenses in this period.</p>
               ) : (
-                <div className="h-72">
+                <div className="relative h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={100} label>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={68}
+                        outerRadius={98}
+                        paddingAngle={2}
+                        cornerRadius={4}
+                        stroke="var(--surface)"
+                        strokeWidth={2}
+                      >
                         {pieData.map((entry, i) => (
-                          <Cell key={entry.name} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          <Cell key={entry.name} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v) => fmtMoney(String(v))} />
-                      <Legend />
+                      <Tooltip content={<MoneyTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
                     </PieChart>
                   </ResponsiveContainer>
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-6">
+                    <p className="caption-5" style={{ color: 'var(--muted)' }}>
+                      Total spent
+                    </p>
+                    <p className="body-4 tabular-nums">{fmtMoney(query.data.expenses)}</p>
+                  </div>
                 </div>
               )}
               {pieData.length > 0 ? (
@@ -161,20 +179,20 @@ export function ReportsPage() {
               ) : null}
             </div>
             <div className="card p-4">
-              <h2 className="text-sm font-semibold">Income vs expenses by month</h2>
+              <h2 className="title-4">Income vs expenses by month</h2>
               {barData.length === 0 ? (
-                <p className="py-8 text-center text-sm" style={{ color: 'var(--muted)' }}>No data in this period.</p>
+                <p className="body-6 py-8 text-center" style={{ color: 'var(--muted)' }}>No data in this period.</p>
               ) : (
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="month" tick={{ fill: 'var(--muted)', fontSize: 12 }} />
-                      <YAxis tick={{ fill: 'var(--muted)', fontSize: 12 }} />
-                      <Tooltip formatter={(v) => fmtMoney(String(v))} />
-                      <Legend />
-                      <Bar dataKey="income" fill="#15803d" name="Income" />
-                      <Bar dataKey="expenses" fill="#b91c1c" name="Expenses" />
+                    <BarChart data={barData} barCategoryGap="28%">
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fill: 'var(--muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: 'var(--muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<MoneyTooltip />} cursor={{ fill: 'var(--surface-2)' }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="income" fill={INCOME_FILL} name="Income" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                      <Bar dataKey="expenses" fill={EXPENSE_FILL} name="Expenses" radius={[6, 6, 0, 0]} maxBarSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

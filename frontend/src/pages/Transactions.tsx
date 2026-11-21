@@ -250,7 +250,7 @@ function TransferForm({ accounts, onSaved, onCancel }: { accounts: Account[]; on
         save.mutate();
       }}
     >
-      <p className="text-sm" style={{ color: 'var(--muted)' }}>
+      <p className="body-6" style={{ color: 'var(--muted)' }}>
         Moving money between your own accounts never counts as income or spending.
       </p>
       <div className="grid grid-cols-2 gap-3">
@@ -309,19 +309,25 @@ function TransferForm({ accounts, onSaved, onCancel }: { accounts: Account[]; on
 function RecurringSection({ accounts, categories }: { accounts: Account[]; categories: Category[] }) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [notice, setNotice] = useState('');
   const list = useQuery({
     queryKey: ['recurring'],
     queryFn: () => fetchAll<RecurringTransaction>('/recurring/'),
   });
   const generate = useMutation({
     mutationFn: () => api.post<{ created: number }>('/recurring/generate-all-due/', {}),
+    // Wait for the refetch to land before showing the result, so the
+    // lists behind it already show the generated rows. allSettled: a
+    // failed refetch must never strand the notice.
     onSuccess: async (res) => {
       await Promise.allSettled([
         qc.invalidateQueries({ queryKey: ['recurring'] }),
         qc.invalidateQueries({ queryKey: ['transactions'] }),
         qc.invalidateQueries({ queryKey: ['dashboard'] }),
       ]);
-      alert(`${res.created} transaction(s) generated from due templates.`);
+      setNotice(
+        `${res.created} transaction${res.created === 1 ? '' : 's'} generated from due templates.`,
+      );
     },
   });
   const toggle = useMutation({
@@ -341,7 +347,7 @@ function RecurringSection({ accounts, categories }: { accounts: Account[]; categ
   return (
     <div className="card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">Recurring transactions</h2>
+        <h2 className="title-4">Recurring transactions</h2>
         <div className="flex gap-2">
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => generate.mutate()} disabled={generate.isPending}>
             {generate.isPending ? 'Generating…' : 'Generate due now'}
@@ -351,10 +357,15 @@ function RecurringSection({ accounts, categories }: { accounts: Account[]; categ
           </button>
         </div>
       </div>
+      {notice ? (
+        <p className="caption-4 mb-3" role="status" style={{ color: 'var(--good)' }}>
+          {notice}
+        </p>
+      ) : null}
       {list.isLoading ? (
         <Spinner label="Loading templates…" />
       ) : !list.data || list.data.length === 0 ? (
-        <p className="py-2 text-sm" style={{ color: 'var(--muted)' }}>
+        <p className="body-6 py-2" style={{ color: 'var(--muted)' }}>
           No recurring templates yet — e.g. monthly rent or salary. Due instances are
           generated on demand with “Generate due now”.
         </p>
@@ -568,11 +579,11 @@ export function TransactionsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Transactions</h1>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          <h1 className="heading-6">Transactions</h1>
+          <p className="body-6" style={{ color: 'var(--muted)' }}>
             Income and expenses. Transfers are listed separately and never count
             as income or spending.
           </p>
@@ -614,7 +625,7 @@ export function TransactionsPage() {
             <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
           ))}
         </select>
-        <select className="input w-36" value={type} onChange={(e) => { setType(e.target.value); resetPage(); }}>
+        <select className="input w-44" value={type} onChange={(e) => { setType(e.target.value); resetPage(); }}>
           <option value="">Income + expense</option>
           <option value="income">Income</option>
           <option value="expense">Expense</option>
@@ -639,6 +650,7 @@ export function TransactionsPage() {
         <Spinner label="Loading transactions…" />
       ) : !list.data || list.data.results.length === 0 ? (
         <EmptyState
+          art="transactions"
           title="No transactions match"
           hint={accounts.length === 0 ? 'Add an account first, then record your first transaction.' : 'Try clearing a filter, or add a transaction.'}
           action={

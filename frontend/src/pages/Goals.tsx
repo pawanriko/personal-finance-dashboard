@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, qs, ApiError } from '../lib/api';
 import type { Account, Goal, GoalContribution } from '../lib/types';
 import { fmtDate, fmtMoney, todayIso } from '../lib/utils';
-import { EmptyState, FieldError, Modal, ProgressBar, Spinner } from '../components/ui';
+import { EmptyState, FieldError, Modal, ProgressBar, ProgressRing, Spinner } from '../components/ui';
 
 function GoalForm({
   initial,
@@ -156,7 +156,7 @@ function GoalDetail({ goal }: { goal: Goal }) {
       {list.isLoading ? (
         <Spinner label="Loading contributions…" />
       ) : !list.data || list.data.length === 0 ? (
-        <p className="text-sm" style={{ color: 'var(--muted)' }}>No contributions yet.</p>
+        <p className="body-6" style={{ color: 'var(--muted)' }}>No contributions yet.</p>
       ) : (
         <ul className="flex flex-col divide-y text-sm" style={{ borderColor: 'var(--border)' }}>
           {list.data.map((c) => (
@@ -196,11 +196,11 @@ export function GoalsPage() {
   const goals = list.data ?? [];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Goals</h1>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          <h1 className="heading-6">Goals</h1>
+          <p className="body-6" style={{ color: 'var(--muted)' }}>
             Savings targets with a target amount and optional target date.
           </p>
         </div>
@@ -211,6 +211,7 @@ export function GoalsPage() {
         <Spinner label="Loading goals…" />
       ) : goals.length === 0 ? (
         <EmptyState
+          art="goals"
           title="No savings goals yet"
           hint="Set a target — an emergency fund, a trip, a new laptop — and track contributions toward it."
           action={<button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>+ Add goal</button>}
@@ -218,16 +219,21 @@ export function GoalsPage() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {goals.map((g) => (
-            <div key={g.id} className="card p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium">{g.name}</p>
-                  <p className="text-sm tabular-nums" style={{ color: 'var(--muted)' }}>
-                    {fmtMoney(g.current_amount)} of {fmtMoney(g.target_amount)}
-                    {g.target_date ? ` · by ${fmtDate(g.target_date)}` : ''}
-                  </p>
+            <div key={g.id} className="card card-hover anim-stagger p-4" style={{ '--d': `${(goals.indexOf(g) % 4) * 60}ms` } as React.CSSProperties}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <ProgressRing percent={g.progress_percent} size={72} stroke={8} label={`${g.name} goal ${g.progress_percent} percent reached`} />
+                  <div>
+                    <p className="font-medium">{g.name}</p>
+                    <p className="text-sm tabular-nums" style={{ color: 'var(--muted)' }}>
+                      {fmtMoney(g.current_amount)} of {fmtMoney(g.target_amount)}
+                      {g.target_date ? ` · by ${fmtDate(g.target_date)}` : ''}
+                    </p>
+                  </div>
                 </div>
-                <span className="text-sm font-medium tabular-nums">{g.progress_percent}%</span>
+                <span className="caption-3 shrink-0 rounded-full px-2 py-1" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>
+                  ◎ Goal
+                </span>
               </div>
               <div className="mt-3">
                 <ProgressBar percent={g.progress_percent} />

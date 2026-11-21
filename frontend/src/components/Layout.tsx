@@ -39,7 +39,7 @@ function ProfileMenu() {
         aria-expanded={open}
       >
         <span
-          className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
           style={{ background: 'var(--accent)' }}
         >
           {initials(user.username)}
@@ -52,8 +52,8 @@ function ProfileMenu() {
           role="menu"
         >
           <div className="border-b px-3 py-2" style={{ borderColor: 'var(--border)' }}>
-            <p className="text-sm font-medium">{user.username}</p>
-            <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>
+            <p className="body-5">{user.username}</p>
+            <p className="caption-5 truncate" style={{ color: 'var(--muted)' }}>
               {user.email || 'No email set'}
             </p>
           </div>
@@ -93,16 +93,28 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen">
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       {/* Sidebar (desktop) */}
       <aside
         className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r p-4 md:flex"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <div className="mb-6 px-2">
-          <p className="text-base font-bold leading-tight">Personal Finance</p>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>
-            Dashboard
-          </p>
+        <div className="mb-6 flex items-center gap-2 px-2">
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white"
+            style={{ background: 'var(--accent)' }}
+            aria-hidden
+          >
+            ₹
+          </span>
+          <div>
+            <p className="title-3 leading-tight">Personal Finance</p>
+            <p className="caption-5" style={{ color: 'var(--muted)' }}>
+              Dashboard
+            </p>
+          </div>
         </div>
         <nav className="flex flex-col gap-1">
           {NAV.map((item) => (
@@ -117,7 +129,7 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <p className="mt-auto px-2 text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+        <p className="caption-5 mt-auto px-2" style={{ color: 'var(--muted)' }}>
           Money is stored as exact decimals. Transfers never count as income or
           spending.
         </p>
@@ -126,10 +138,19 @@ export function Layout() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
         <header
-          className="sticky top-0 z-40 flex items-center gap-2 border-b px-4 py-3"
+          className="sticky top-0 z-40 flex items-center gap-2 border-b px-4 py-3 shadow-sm"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <p className="text-sm font-semibold md:hidden">Personal Finance</p>
+          <p className="body-4 flex items-center gap-2 md:hidden">
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white"
+              style={{ background: 'var(--accent)' }}
+              aria-hidden
+            >
+              ₹
+            </span>
+            Personal Finance
+          </p>
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
@@ -166,7 +187,11 @@ export function Layout() {
 
         {/* Page content — keyed by path so each navigation replays the
             subtle page transition. */}
-        <main key={location.pathname} className="anim-page mx-auto w-full max-w-6xl flex-1 p-4 md:p-6">
+        <main
+          id="main-content"
+          key={location.pathname}
+          className="anim-page mx-auto w-full max-w-6xl flex-1 p-4 md:p-6"
+        >
           <Outlet />
         </main>
       </div>

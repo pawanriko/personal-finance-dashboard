@@ -1,46 +1,74 @@
 @import "tailwindcss";
+@import "@fontsource-variable/manrope";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
 }
 
+/* Manrope variable font via the @fontsource-variable/manrope npm package
+   (skill B1 approved typeface, one typeface for the whole site). The
+   package CSS declares the latin + latin-ext subsets, so Vite bundles
+   the woff2 files into dist/assets/ for both dev (/) and production
+   (/static/) bases — no binary font files are kept in the repo. */
+
 /* ------------------------------------------------------------------ */
-/* Design tokens: surfaces, borders and text, light + dark.            */
+/* Design tokens: financial palette — deep emerald + gold. Light:     */
+/* warm paper. Dark: skill B4 surface list (#131209 / #1F1F1F /       */
+/* #272727 / #313131) with emerald + gold accents. Semantic money     */
+/* colours are single tokens so income/expense read the same          */
+/* everywhere.                                                        */
 /* ------------------------------------------------------------------ */
 :root {
-  --bg: #f4f5f7;
+  --bg: #faf7f0;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e5e7eb;
-  --text: #111827;
-  --muted: #6b7280;
-  --accent: #0f766e;
-  --accent-soft: #ccfbf1;
-  --danger: #b91c1c;
-  --danger-soft: #fee2e2;
-  --good: #15803d;
+  --surface-2: #f3efe4;
+  --border: #e6dfcf;
+  --text: #14202e;
+  --muted: #66727a;
+  --accent: #0b6b4a;
+  --accent-2: #0e9f6e;
+  --accent-soft: #d8f2e4;
+  --gold: #c9a227;
+  --gold-soft: #fbf3d3;
+  --income: #0e7a4d;
+  --expense: #c22b45;
+  --danger: #b4232f;
+  --danger-soft: #fde8e8;
+  --good: #0e7a4d;
   --warn: #b45309;
   --warn-soft: #fef3c7;
+  --hero-from: #0a5c40;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-sm: 0 1px 2px rgba(20, 32, 46, 0.06), 0 1px 3px rgba(20, 32, 46, 0.05);
+  --shadow-md: 0 4px 12px rgba(20, 32, 46, 0.08), 0 2px 4px rgba(20, 32, 46, 0.05);
   color-scheme: light;
 }
 
 .dark {
-  --bg: #0f1115;
-  --surface: #171a21;
-  --surface-2: #1e222b;
-  --border: #2a2f3a;
-  --text: #e5e7eb;
-  --muted: #9ca3af;
-  --accent: #2dd4bf;
-  --accent-soft: #134e4a;
+  --bg: #131209;
+  --surface: #1f1f1f;
+  --surface-2: #272727;
+  --border: #313131;
+  --text: #e9f0ea;
+  --muted: #9aa89d;
+  --accent: #34d399;
+  --accent-2: #10b981;
+  --accent-soft: #0d3b2a;
+  --gold: #e3b341;
+  --gold-soft: #3a2f10;
+  --income: #4ade80;
+  --expense: #fb7185;
   --danger: #f87171;
   --danger-soft: #450a0a;
   --good: #4ade80;
   --warn: #fbbf24;
   --warn-soft: #451a03;
+  --hero-from: #083d2b;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4), 0 2px 5px rgba(0, 0, 0, 0.35);
   color-scheme: dark;
 }
 
@@ -58,26 +86,141 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
+/* Named text styles (skill B1). Every text element resolves to one   */
+/* of these; sizes land on Tailwind scale steps, weights cap at bold,  */
+/* no italics, headings use text-wrap: balance, body uses pretty.     */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .heading-4 {
+    @apply text-3xl font-semibold leading-9;
+    text-wrap: balance;
+  }
+  .heading-5 {
+    @apply text-2xl font-semibold leading-8;
+    text-wrap: balance;
+  }
+  .heading-6 {
+    @apply text-xl font-semibold leading-7;
+    text-wrap: balance;
+  }
+  .title-1 {
+    @apply text-xl font-medium leading-7;
+    text-wrap: balance;
+  }
+  .title-2 {
+    @apply text-lg font-semibold leading-7;
+    text-wrap: balance;
+  }
+  .title-3 {
+    @apply text-base font-medium leading-6;
+    text-wrap: balance;
+  }
+  .title-4 {
+    @apply text-sm font-medium leading-5;
+    text-wrap: balance;
+  }
+  .title-5 {
+    @apply text-xs font-medium leading-4;
+    text-wrap: balance;
+  }
+  .body-3 {
+    @apply text-base leading-6;
+    text-wrap: pretty;
+  }
+  .body-4 {
+    @apply text-base font-medium leading-6;
+    text-wrap: pretty;
+  }
+  .body-5 {
+    @apply text-sm font-medium leading-5;
+    text-wrap: pretty;
+  }
+  .body-6 {
+    @apply text-sm leading-5;
+    text-wrap: pretty;
+  }
+  .button-md {
+    @apply text-base font-semibold leading-6;
+  }
+  .button-sm {
+    @apply text-sm font-semibold leading-5;
+  }
+  .button-xsm {
+    @apply text-xs font-semibold leading-4;
+  }
+  .caption-2 {
+    @apply text-sm leading-5;
+  }
+  .caption-3 {
+    @apply text-xs font-semibold leading-4;
+  }
+  .caption-4 {
+    @apply text-xs font-medium leading-4;
+  }
+  .caption-5 {
+    @apply text-xs leading-4;
+  }
+
+  /* Hero heading text gradient (skill B5 — the one place gradients are
+     used, on text only, never on a background). */
+  .hero-text {
+    background: linear-gradient(90deg, #000000, #666666);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .dark .hero-text {
+    background: linear-gradient(90deg, #ffffff, #9b9b9b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Design system: one button, card, input and badge style, reused     */
-/* everywhere. Colours come from the tokens above so dark mode just    */
-/* works.                                                              */
+/* everywhere. Spacing comes from the skill B2 table only; radii from  */
+/* B3 (card rounded-3xl, inner shapes rounded-lg per the nested       */
+/* radius formula: 24px outer minus 16px gap = 8px inner). Buttons:   */
+/* 8px vertical / 12px horizontal padding (B2).                        */
 /* ------------------------------------------------------------------ */
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium
-      transition-all duration-150 select-none cursor-pointer
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold
+      select-none cursor-pointer
       disabled:opacity-50 disabled:pointer-events-none
       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600;
+    transition:
+      background-color 300ms var(--ease-out),
+      color 300ms var(--ease-out),
+      box-shadow 300ms var(--ease-out),
+      transform 300ms var(--ease-out),
+      filter 300ms var(--ease-out);
   }
   .btn:active {
-    transform: scale(0.97);
+    transform: scale(0.98);
   }
   .btn-primary {
     background: var(--accent);
     color: #fff;
+    box-shadow: 0 2px 8px rgba(11, 107, 74, 0.35);
+  }
+  /* Dark mode uses a bright emerald, so the label goes dark for
+     readable contrast (white on #34d399 is too faint). */
+  .dark .btn-primary {
+    color: #052e22;
   }
   .btn-primary:hover {
-    filter: brightness(1.08);
+    background: var(--accent-2);
+    box-shadow: 0 4px 14px rgba(11, 107, 74, 0.4);
+  }
+  .btn-gold {
+    background: var(--gold);
+    color: #241a02;
+    box-shadow: 0 2px 8px rgba(201, 162, 39, 0.35);
+  }
+  .btn-gold:hover {
+    filter: brightness(1.06);
   }
   .btn-ghost {
     background: transparent;
@@ -95,21 +238,74 @@ body {
     filter: brightness(1.08);
   }
   .btn-sm {
-    @apply px-2.5 py-1.5 text-xs;
+    @apply px-2 py-1 text-xs;
   }
 
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Lift on hover for cards that are interactive (links / click targets). */
+  .card-hover {
+    transition:
+      transform 300ms var(--ease-out),
+      box-shadow 300ms var(--ease-out);
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Flat hero band — dashboard total-balance card + auth brand.
+     Skill B4: backgrounds are flat, never gradients. */
+  .hero {
+    background: var(--hero-from);
+    border: 1px solid transparent;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(11, 107, 74, 0.35);
+  }
+  .hero .hero-label {
+    color: rgba(255, 255, 255, 0.82);
+  }
+  .hero .hero-sub {
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  /* Small tinted icon chip used in stat cards and account cards. */
+  .stat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2rem;
+    width: 2rem;
+    flex-shrink: 0;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .stat-icon.gold {
+    background: var(--gold-soft);
+    color: var(--gold);
+  }
+  .stat-icon.rose {
+    background: var(--danger-soft);
+    color: var(--danger);
   }
 
   .input {
-    @apply w-full rounded-lg border px-3 py-2 text-sm outline-none transition-shadow
-      focus:ring-2 focus:ring-teal-600/40 focus:border-teal-600;
+    @apply w-full rounded-lg border px-3 py-2 text-sm outline-none
+      focus:ring-2 focus:border-teal-600;
     background: var(--surface);
     border-color: var(--border);
     color: var(--text);
+    --tw-ring-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    transition:
+      border-color 300ms var(--ease-out),
+      box-shadow 300ms var(--ease-out);
   }
   .input::placeholder {
     color: var(--muted);
@@ -127,28 +323,16 @@ body {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
   }
   .badge-green {
-    background: #dcfce7;
-    color: #166534;
-  }
-  .dark .badge-green {
-    background: #14532d;
-    color: #bbf7d0;
+    background: var(--accent-soft);
+    color: var(--good);
   }
   .badge-amber {
-    background: #fef3c7;
-    color: #92400e;
-  }
-  .dark .badge-amber {
-    background: #451a03;
-    color: #fde68a;
+    background: var(--warn-soft);
+    color: var(--warn);
   }
   .badge-red {
-    background: #fee2e2;
-    color: #991b1b;
-  }
-  .dark .badge-red {
-    background: #450a0a;
-    color: #fecaca;
+    background: var(--danger-soft);
+    color: var(--danger);
   }
   .badge-grey {
     background: var(--surface-2);
@@ -157,8 +341,11 @@ body {
   }
 
   .nav-link {
-    @apply flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors;
+    @apply flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium;
     color: var(--muted);
+    transition:
+      background-color 300ms var(--ease-out),
+      color 300ms var(--ease-out);
   }
   .nav-link:hover {
     background: var(--surface-2);
@@ -167,10 +354,11 @@ body {
   .nav-link.active {
     background: var(--accent-soft);
     color: var(--accent);
+    box-shadow: inset 3px 0 0 var(--gold);
   }
 
   .table-head {
-    @apply text-left text-xs font-medium uppercase tracking-wide px-4 py-2.5 border-b;
+    @apply text-left text-xs font-medium px-4 py-3 border-b;
     color: var(--muted);
     border-color: var(--border);
   }
@@ -178,11 +366,32 @@ body {
     @apply px-4 py-3 text-sm border-b;
     border-color: var(--border);
   }
+
+  /* Skip link for keyboard users (skill B10). Visually hidden until
+     focused, then a solid button at the top of the page. */
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 100;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: top 300ms var(--ease-out);
+  }
+  .skip-link:focus {
+    top: 0.5rem;
+  }
 }
 
 /* ------------------------------------------------------------------ */
-/* Animations: fast and subtle — pop-in for modals, fade-slide for    */
-/* pages, a gentle press on buttons (see .btn:active).                 */
+/* Animations (skill B7): one base curve, duration-500 for layout /   */
+/* position changes, 300ms for colour and opacity, never under 200ms. */
+/* Only transform and opacity are animated. Reduced motion replaces    */
+/* movement with a plain opacity change.                               */
 /* ------------------------------------------------------------------ */
 @keyframes page-in {
   from {
@@ -241,23 +450,52 @@ body {
   }
 }
 
-.anim-page {
-  animation: page-in 180ms ease-out both;
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
+.anim-page {
+  animation: page-in 500ms var(--ease-out) both;
+}
+/* Cards that arrive one after another; set style={{ '--d': '60ms' }}. */
+.anim-stagger {
+  animation: stagger-in 500ms var(--ease-out) both;
+  animation-delay: var(--d, 0ms);
+}
+/* Progress rings draw themselves; the offset is set inline. The ring
+   animates an SVG stroke property (no layout impact), which is why it
+   keeps its own transition instead of the transform-only rule. */
+.ring-anim {
+  transition: stroke-dashoffset 700ms var(--ease-out);
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+/* Auth page background is flat (skill B4); the card carries the page. */
+.auth-bg {
+  background: var(--bg);
+}
+
 .anim-modal {
-  animation: modal-in 160ms ease-out both;
+  animation: modal-in 500ms var(--ease-out) both;
 }
 .anim-modal-out {
-  animation: modal-out 140ms ease-in both;
+  animation: modal-out 300ms var(--ease-out) both;
 }
 .anim-overlay {
-  animation: overlay-in 150ms ease-out both;
+  animation: overlay-in 300ms var(--ease-out) both;
 }
 .anim-overlay-out {
-  animation: overlay-out 140ms ease-in both;
+  animation: overlay-out 300ms var(--ease-out) both;
 }
 .anim-menu {
-  animation: menu-in 120ms ease-out both;
+  animation: menu-in 300ms var(--ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -266,7 +504,11 @@ body {
   .anim-modal-out,
   .anim-overlay,
   .anim-overlay-out,
-  .anim-menu {
+  .anim-menu,
+  .anim-stagger {
     animation: none;
+  }
+  .ring-anim {
+    transition: none;
   }
 }

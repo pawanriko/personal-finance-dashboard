@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, qs, ApiError } from '../lib/api';
 import type { Budget, Category } from '../lib/types';
 import { fmtMoney, monthStart, shiftMonth, fmtMonthLabel } from '../lib/utils';
-import { EmptyState, FieldError, Modal, ProgressBar, Spinner } from '../components/ui';
+import { EmptyState, FieldError, Modal, ProgressBar, ProgressRing, Spinner } from '../components/ui';
 
 function BudgetForm({
   initial,
@@ -121,11 +121,11 @@ export function BudgetsPage() {
   const budgets = useMemo(() => list.data ?? [], [list.data]);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Budgets</h1>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          <h1 className="heading-6">Budgets</h1>
+          <p className="body-6" style={{ color: 'var(--muted)' }}>
             Monthly spending limits per category. Near means ≥80% spent, over
             means over 100%.
           </p>
@@ -142,6 +142,7 @@ export function BudgetsPage() {
         <Spinner label="Loading budgets…" />
       ) : budgets.length === 0 ? (
         <EmptyState
+          art="budgets"
           title={`No budgets for ${fmtMonthLabel(month)}`}
           hint="Set a monthly limit on an expense category — groceries, transport, entertainment — and watch spending against it."
           action={<button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>+ Add budget</button>}
@@ -149,15 +150,18 @@ export function BudgetsPage() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {budgets.map((b) => (
-            <div key={b.id} className="card p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium">{b.category_name}</p>
-                  <p className="text-sm tabular-nums" style={{ color: 'var(--muted)' }}>
-                    {fmtMoney(b.spent)} of {fmtMoney(b.limit)} · {b.percent_used}%
-                  </p>
+            <div key={b.id} className="card card-hover anim-stagger p-4" style={{ '--d': `${(budgets.indexOf(b) % 4) * 60}ms` } as React.CSSProperties}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <ProgressRing percent={b.percent_used} status={b.status} size={72} stroke={8} label={`${b.category_name} budget ${b.percent_used} percent used`} />
+                  <div>
+                    <p className="font-medium">{b.category_name}</p>
+                    <p className="text-sm tabular-nums" style={{ color: 'var(--muted)' }}>
+                      {fmtMoney(b.spent)} of {fmtMoney(b.limit)}
+                    </p>
+                  </div>
                 </div>
-                <span className={`badge ${b.status === 'over' ? 'badge-red' : b.status === 'near' ? 'badge-amber' : 'badge-green'}`}>
+                <span className={`badge shrink-0 ${b.status === 'over' ? 'badge-red' : b.status === 'near' ? 'badge-amber' : 'badge-green'}`}>
                   {b.status === 'over' ? 'Over budget' : b.status === 'near' ? 'Near limit' : 'On track'}
                 </span>
               </div>

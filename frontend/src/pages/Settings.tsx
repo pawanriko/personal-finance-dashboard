@@ -153,16 +153,16 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold">Settings</h1>
-        <p className="text-sm" style={{ color: 'var(--muted)' }}>
+        <h1 className="heading-6">Settings</h1>
+        <p className="body-6" style={{ color: 'var(--muted)' }}>
           Profile, default currency, categories, and your data.
         </p>
       </div>
 
       <div className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold">Profile</h2>
+        <h2 className="title-4 mb-3">Profile</h2>
         {profileQ.isLoading ? (
           <Spinner label="Loading profile…" />
         ) : (
@@ -206,7 +206,7 @@ export function SettingsPage() {
 
       <div className="card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Categories</h2>
+          <h2 className="title-4">Categories</h2>
           <div className="flex gap-2">
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => seed.mutate()} disabled={seed.isPending}>
               {seed.isPending ? 'Seeding…' : 'Re-seed defaults'}
@@ -221,7 +221,7 @@ export function SettingsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <h3 className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+              <h3 className="caption-4 mb-1" style={{ color: 'var(--muted)' }}>
                 Income
               </h3>
               <ul className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -229,7 +229,7 @@ export function SettingsPage() {
               </ul>
             </div>
             <div>
-              <h3 className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
+              <h3 className="caption-4 mb-1" style={{ color: 'var(--muted)' }}>
                 Expense
               </h3>
               <ul className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
@@ -245,7 +245,7 @@ export function SettingsPage() {
       </div>
 
       <div className="card p-4">
-        <h2 className="mb-3 text-sm font-semibold">Your data</h2>
+        <h2 className="title-4 mb-3">Your data</h2>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"

@@ -9,8 +9,14 @@ import tailwindcss from '@tailwindcss/vite'
 // build at /static/..., so the built index.html must reference
 // /static/assets/... — without this, Vite emits /assets/... which Django
 // answers with the HTML shell and React never mounts (blank page).
-export default defineConfig({
-  base: '/static/',
+export default defineConfig(({ mode }) => ({
+  // base '/static/' only in production: Django/WhiteNoise serves the
+  // collected build at /static/... — without it Vite emits /assets/...
+  // which Django answers with the HTML shell and React never mounts
+  // (blank page). In dev the base must be '/' or BrowserRouter (which has
+  // no basename) breaks: the dev server serves at /static/ while routes
+  // live at /login, /transactions, ...
+  base: mode === 'production' ? '/static/' : '/',
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
@@ -25,4 +31,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

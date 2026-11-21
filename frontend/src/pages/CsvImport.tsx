@@ -91,10 +91,10 @@ export function CsvImportPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold">Import CSV</h1>
-        <p className="text-sm" style={{ color: 'var(--muted)' }}>
+        <h1 className="heading-6">Import CSV</h1>
+        <p className="body-6" style={{ color: 'var(--muted)' }}>
           Upload → preview with column mapping → confirm. Rows with errors or
           likely duplicates are never imported unless you explicitly select them
           (duplicates stay blocked).
@@ -104,7 +104,7 @@ export function CsvImportPage() {
       {result ? (
         <div className="card p-4">
           <p className="font-medium">Import complete</p>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          <p className="body-6" style={{ color: 'var(--muted)' }}>
             {result.created} transaction(s) created, {result.skipped} skipped.
           </p>
           <button
@@ -162,7 +162,7 @@ export function CsvImportPage() {
         <div className="flex flex-col gap-4">
           <div className="card p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold">
+              <h2 className="title-4">
                 Preview: {preview.file_name} · {preview.rows.length} row(s) ·{' '}
                 {preview.valid_count} valid · {preview.error_count} with errors ·{' '}
                 {preview.duplicate_count} likely duplicate(s)
@@ -273,11 +273,11 @@ export function CsvImportPage() {
       )}
 
       <div className="card p-4">
-        <h2 className="mb-2 text-sm font-semibold">Past imports</h2>
+        <h2 className="title-4 mb-2">Past imports</h2>
         {historyQ.isLoading ? (
           <Spinner label="Loading imports…" />
         ) : !historyQ.data || historyQ.data.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>No imports yet.</p>
+          <p className="body-6" style={{ color: 'var(--muted)' }}>No imports yet.</p>
         ) : (
           <ul className="flex flex-col divide-y text-sm" style={{ borderColor: 'var(--border)' }}>
             {historyQ.data.map((imp) => (

@@ -4,13 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, ApiError } from '../lib/api';
 import type { Account, Paginated, Transaction } from '../lib/types';
 import { fmtDate, fmtMoney } from '../lib/utils';
-import { EmptyState, FieldError, Modal, Spinner } from '../components/ui';
+import { CountUp, EmptyState, FieldError, Modal, Spinner } from '../components/ui';
 
 const ACCOUNT_TYPES = [
-  { value: 'checking', label: 'Checking' },
-  { value: 'savings', label: 'Savings' },
-  { value: 'credit_card', label: 'Credit Card' },
-  { value: 'cash', label: 'Cash' },
+  { value: 'checking', label: 'Checking', icon: '▤' },
+  { value: 'savings', label: 'Savings', icon: '◔' },
+  { value: 'credit_card', label: 'Credit Card', icon: '▬' },
+  { value: 'cash', label: 'Cash', icon: '●' },
 ] as const;
 
 function AccountForm({
@@ -110,7 +110,7 @@ function AccountHistory({ account }: { account: Account }) {
   });
   if (history.isLoading) return <Spinner label="Loading history…" />;
   if (!history.data || history.data.results.length === 0) {
-    return <p className="text-sm" style={{ color: 'var(--muted)' }}>No transactions on this account yet.</p>;
+    return <p className="body-6" style={{ color: 'var(--muted)' }}>No transactions on this account yet.</p>;
   }
   return (
     <div className="overflow-x-auto">
@@ -171,11 +171,11 @@ export function AccountsPage() {
   const typeLabel = (t: string) => ACCOUNT_TYPES.find((x) => x.value === t)?.label ?? t;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Accounts</h1>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          <h1 className="heading-6">Accounts</h1>
+          <p className="body-6" style={{ color: 'var(--muted)' }}>
             Checking, savings, credit cards and cash. For a credit card, a
             negative balance means the amount owed.
           </p>
@@ -189,6 +189,7 @@ export function AccountsPage() {
         <Spinner label="Loading accounts…" />
       ) : accounts.length === 0 ? (
         <EmptyState
+          art="accounts"
           title="No accounts yet"
           hint="Create your first account — a bank account, wallet or cash — and set its opening balance. Transactions and budgets build on it."
           action={<button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>+ Add account</button>}
@@ -196,13 +197,18 @@ export function AccountsPage() {
       ) : (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {accounts.map((a) => (
-            <div key={a.id} className="card p-4">
+            <div key={a.id} className="card card-hover anim-stagger p-4" style={{ '--d': `${(accounts.indexOf(a) % 4) * 60}ms` } as React.CSSProperties}>
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium">{a.name}</p>
-                  <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                    {typeLabel(a.type)} · {a.currency}
-                  </p>
+                <div className="flex items-start gap-2">
+                  <span className="stat-icon" aria-hidden>
+                    {ACCOUNT_TYPES.find((x) => x.value === a.type)?.icon ?? '▤'}
+                  </span>
+                  <div>
+                    <p className="font-medium">{a.name}</p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                      {typeLabel(a.type)} · {a.currency}
+                    </p>
+                  </div>
                 </div>
                 {!a.is_active ? <span className="badge badge-grey">inactive</span> : null}
               </div>
@@ -210,7 +216,7 @@ export function AccountsPage() {
                 className="mt-3 text-2xl font-semibold tabular-nums"
                 style={{ color: Number(a.balance) < 0 ? 'var(--danger)' : 'var(--text)' }}
               >
-                {fmtMoney(a.balance, a.currency)}
+                <CountUp value={Number(a.balance)} format={(n) => fmtMoney(n.toFixed(2), a.currency)} />
               </p>
               <p className="text-xs" style={{ color: 'var(--muted)' }}>
                 Opening {fmtMoney(a.opening_balance, a.currency)}

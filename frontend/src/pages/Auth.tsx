@@ -8,13 +8,27 @@ import { FieldError } from '../components/ui';
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="card anim-page w-full max-w-md p-6 shadow-lg">
-        <h1 className="text-xl font-bold">{title}</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-          {subtitle}
-        </p>
-        <div className="mt-6">{children}</div>
+    <div className="auth-bg flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="mb-5 flex flex-col items-center gap-2 text-center">
+          <span
+            className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl font-bold text-white shadow-lg"
+            style={{ background: 'var(--accent)' }}
+            aria-hidden
+          >
+            ₹
+          </span>
+          <p className="title-5" style={{ color: 'var(--muted)' }}>
+            Personal Finance
+          </p>
+        </div>
+        <div className="card anim-page w-full p-6 shadow-lg">
+          <h1 className="heading-6 hero-text">{title}</h1>
+          <p className="body-6 mt-1" style={{ color: 'var(--muted)' }}>
+            {subtitle}
+          </p>
+          <div className="mt-6">{children}</div>
+        </div>
       </div>
     </div>
   );
@@ -190,7 +204,7 @@ export function LoginPage() {
           {busy ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <p className="mt-4 text-center text-sm" style={{ color: 'var(--muted)' }}>
+      <p className="body-6 mt-4 text-center" style={{ color: 'var(--muted)' }}>
         No account yet?{' '}
         <Link to="/register" className="font-medium" style={{ color: 'var(--accent)' }}>
           Sign up
@@ -272,7 +286,7 @@ export function RegisterPage() {
           {busy ? 'Creating account…' : 'Sign up'}
         </button>
       </form>
-      <p className="mt-4 text-center text-sm" style={{ color: 'var(--muted)' }}>
+      <p className="body-6 mt-4 text-center" style={{ color: 'var(--muted)' }}>
         Already have an account?{' '}
         <Link to="/login" className="font-medium" style={{ color: 'var(--accent)' }}>
           Log in
