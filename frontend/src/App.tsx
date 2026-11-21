@@ -6,9 +6,21 @@ import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import { LoginPage, RegisterPage } from './pages/Auth';
 import { DashboardPage } from './pages/Dashboard';
+import { TransactionsPage } from './pages/Transactions';
+import { CsvImportPage } from './pages/CsvImport';
+import { BudgetsPage } from './pages/Budgets';
+import { AccountsPage } from './pages/Accounts';
+import { ReportsPage } from './pages/Reports';
+import { GoalsPage } from './pages/Goals';
+import { SettingsPage } from './pages/Settings';
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
 });
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -41,6 +53,13 @@ export default function App() {
                 }
               >
                 <Route path="/" element={<DashboardPage />} />
+                <Route path="/transactions" element={<TransactionsPage />} />
+                <Route path="/import" element={<CsvImportPage />} />
+                <Route path="/budgets" element={<BudgetsPage />} />
+                <Route path="/accounts" element={<AccountsPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/goals" element={<GoalsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

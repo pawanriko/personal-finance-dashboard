@@ -1,8 +1,7 @@
-# Personal Finance Dashboard — Backend
+# Personal Finance Dashboard
 
-A Django + Django REST Framework backend for a personal finance dashboard:
-manual transaction entry, CSV import, budgets, goals, and reports. The
-React frontend comes later; this repo is backend + API only for now.
+A personal finance dashboard: manual transaction entry, CSV import,
+budgets, goals, and reports. Django + DRF backend, React frontend.
 
 Spec: `your_files/personal-finance-dashboard/blueprint.md` (the blueprint
 is authoritative for features and behaviour).
@@ -10,6 +9,8 @@ is authoritative for features and behaviour).
 ## Stack
 
 - Python 3.12, Django 5.2, Django REST Framework 3.16
+- React 19 + TypeScript + Vite, React Router, TanStack Query, Recharts,
+  Tailwind CSS v4 (`frontend/`)
 - PostgreSQL in production via `DATABASE_URL`; local SQLite by default
 - No Celery/Redis in v1 (blueprint: skip until background tasks need them)
 
@@ -24,6 +25,16 @@ python3 -m venv .venv
 ```
 
 API base: `http://127.0.0.1:8000/api/`
+
+### Frontend (React)
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173 (proxies /api to the backend)
+```
+
+See `frontend/README.md` for pages, the design system, and auth notes.
 
 ### With Docker Compose (backend + Postgres)
 
@@ -142,4 +153,6 @@ Base: `/api/`. All endpoints require an authenticated session (except
 
 - ✅ Milestone 1: project scaffold, data model, migrations, Docker setup
 - ✅ Milestone 2: full DRF API + 50-test suite (all passing)
-- ⏳ Later: React frontend, then bank integrations
+- ✅ Milestone 3: React frontend — all blueprint screens wired to the API,
+  session auth + CSRF, dark/light mode, CSV import with mapping + preview
+- ⏳ Later: UI direction pass on the frontend, then bank integrations
