@@ -2,13 +2,18 @@
 Django settings for the Personal Finance Dashboard backend.
 
 Secrets come from environment variables only. DATABASE_URL (a postgres://
-URL) switches the database to PostgreSQL; when it is empty the project
-uses a local SQLite file, exactly like the kai-v2 project.
+URL, e.g. Neon) switches the database to PostgreSQL via dj-database-url;
+when it is empty the project uses a local SQLite file, exactly like the
+kai-v2 project.
+
+Deploy target: one Render Free web service serving Django + the built
+React SPA from a single domain (see render.yaml + README "Deployment").
 """
 
 import os
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -39,6 +44,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise serves the collected static files (incl. the built React
+    # assets) in production; it must sit right after SecurityMiddleware.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -52,7 +60,9 @@ ROOT_URLCONF = "finance.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # The built React SPA lives in frontend/dist; the catch-all route in
+        # finance/urls.py serves its index.html for non-API paths.
+        "DIRS": [BASE_DIR / "frontend" / "dist"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -68,31 +78,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "finance.wsgi.application"
 
 
-def _database_from_url(url):
-    """Parse a postgres:// DATABASE_URL into a Django database dict."""
-    parts = urlparse(url)
-    query = parse_qs(parts.query)
-    return {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": parts.path.lstrip("/"),
-        "USER": parts.username or "",
-        "PASSWORD": parts.password or "",
-        "HOST": parts.hostname or "",
-        "PORT": parts.port or 5432,
-        "OPTIONS": {"sslmode": query.get("sslmode", ["prefer"])[0]},
-    }
-
-
-# Production provides DATABASE_URL (Postgres); locally we keep SQLite.
-if os.environ.get("DATABASE_URL"):
-    DATABASES = {"default": _database_from_url(os.environ["DATABASE_URL"])}
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+# Production provides DATABASE_URL (Postgres, e.g. Neon pooled URL with
+# ?sslmode=require); locally we keep SQLite. conn_max_age=0: no persistent
+# connections, which the Neon pooler requires.
+DATABASES = {
+    "default": dj_database_url.config(
+        default="sqlite:///" + str(BASE_DIR / "db.sqlite3"),
+        conn_max_age=0,
+    )
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -119,6 +113,23 @@ USE_I18N = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Everything Vite emits into frontend/dist (JS/CSS under assets/, plus
+# favicon/icons from frontend/public/) is collected into STATIC_ROOT and
+# served by WhiteNoise with hashed names + compression.
+STATICFILES_DIRS = [BASE_DIR / "frontend" / "dist"]
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# Render terminates TLS at its proxy and forwards the scheme in
+# X-Forwarded-Proto; without this Django thinks requests are plain HTTP
+# and Secure cookies / is_secure() break.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"

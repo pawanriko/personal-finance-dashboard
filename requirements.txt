@@ -1,4 +1,7 @@
 Django==5.2.19
+dj-database-url==3.0.1
 djangorestframework==3.16.1
+gunicorn==27.0.1
 psycopg[binary]==3.2.6
 python-dateutil==2.9.0
+whitenoise==6.12.0

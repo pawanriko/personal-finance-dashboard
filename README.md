@@ -57,6 +57,44 @@ All secrets come from environment variables (see `.env.example`):
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Origins allowed to POST (default: Vite dev server on :5173) |
 | `CSV_UPLOAD_MAX_BYTES` | Max CSV upload size (default 5 MB) |
 
+## Deployment (Render + Neon, free)
+
+One Render Free web service serves Django + the built React SPA from a
+single domain; the database is a Neon Free Postgres project. $0/month, no
+card. `render.yaml` in the repo root is the Render blueprint.
+
+1. **Neon:** create a project in Singapore (`aws-ap-southeast-1`), copy
+   the **pooled** connection string (host contains `-pooler`, ends in
+   `?sslmode=require`).
+2. **Render:** New → Web Service → connect this repo → Environment
+   Python, plan Free (or apply `render.yaml` as a Blueprint). Build:
+   `pip install -r requirements.txt && npm ci --prefix frontend &&
+   npm run build --prefix frontend && python manage.py collectstatic
+   --noinput && python manage.py migrate`. Start: `gunicorn
+   finance.wsgi:application --bind 0.0.0.0:$PORT`.
+3. **Env vars on Render** (set in the dashboard, never commit them):
+
+   | Variable | Value |
+   | --- | --- |
+   | `DJANGO_SECRET_KEY` | generated fresh in Render (`generateValue` in render.yaml) |
+   | `DJANGO_DEBUG` | `false` |
+   | `DATABASE_URL` | Neon pooled URL |
+   | `DJANGO_ALLOWED_HOSTS` | `<app>.onrender.com` (fill in after the first deploy) |
+   | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://<app>.onrender.com` |
+
+   Session cookies are first-party on the single domain, so Django's
+   default `SameSite=Lax` works — no CORS settings needed.
+4. **Verify:** open `https://<app>.onrender.com`, register/login, add an
+   entry, reload — data must persist (Neon).
+
+Caveats: the free service sleeps after 15 idle minutes (~1-minute cold
+start on the next request) — expected. **Do not add an uptime pinger:**
+it would burn the 750 free instance-hours/month and push Neon past its
+100 CU-hours/month, suspending the database. Uploaded CSVs live under
+`media/` on Render's ephemeral filesystem and are lost on redeploy —
+re-import if needed. Neon Free has no automated backups; take a
+`pg_dump` regularly.
+
 ## Design decisions (from the blueprint)
 
 **Amount convention.** Money is stored as `Decimal` (12 digits, 2 decimal
@@ -155,4 +193,7 @@ Base: `/api/`. All endpoints require an authenticated session (except
 - ✅ Milestone 2: full DRF API + 50-test suite (all passing)
 - ✅ Milestone 3: React frontend — all blueprint screens wired to the API,
   session auth + CSRF, dark/light mode, CSV import with mapping + preview
+- ✅ Milestone 4: deploy-ready — gunicorn + WhiteNoise + dj-database-url,
+  Django serves the built SPA from one domain, `render.yaml` blueprint
+  (Render Free + Neon Free Postgres, $0/month)
 - ⏳ Later: UI direction pass on the frontend, then bank integrations

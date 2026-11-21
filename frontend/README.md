@@ -27,6 +27,16 @@ The backend's `CSRF_TRUSTED_ORIGINS` already includes `http://localhost:5173`.
 
 Production build: `npm run build` (output in `dist/`).
 
+## Production (Render, single domain)
+
+In production the React app is **not** served by Vite: the Render build
+step runs `npm run build`, Django collects `dist/` via WhiteNoise and
+serves `dist/index.html` for every non-API path (catch-all in
+`finance/urls.py`), so React Router works on refresh and deep links.
+`src/lib/api.ts` uses relative `/api` paths — no `VITE_API_URL` needed —
+so the built SPA talks to the same domain it was served from. See the
+root README's "Deployment" section for the full setup.
+
 ## Pages (all wired to the API)
 
 | Route | Screen | API used |
