@@ -11,7 +11,8 @@ import type {
   Transaction,
 } from '../lib/types';
 import { fmtDate, fmtMoney, todayIso } from '../lib/utils';
-import { EmptyState, FieldError, Modal, Spinner } from '../components/ui';
+import { EmptyState, FieldError, Modal, QueryError, Spinner } from '../components/ui';
+import { IconChevronLeft, IconChevronRight } from '../components/icons';
 
 interface TxForm {
   type: 'income' | 'expense';
@@ -362,7 +363,9 @@ function RecurringSection({ accounts, categories }: { accounts: Account[]; categ
           {notice}
         </p>
       ) : null}
-      {list.isLoading ? (
+      {list.isError ? (
+        <QueryError title="Could not load templates" onRetry={() => void list.refetch()} />
+      ) : list.isLoading ? (
         <Spinner label="Loading templates…" />
       ) : !list.data || list.data.length === 0 ? (
         <p className="body-6 py-2" style={{ color: 'var(--muted)' }}>
@@ -372,7 +375,7 @@ function RecurringSection({ accounts, categories }: { accounts: Account[]; categ
       ) : (
         <ul className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
           {list.data.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 body-6">
               <div>
                 <span className="font-medium">{r.merchant || 'Recurring'}</span>
                 <span style={{ color: 'var(--muted)' }}>
@@ -646,7 +649,9 @@ export function TransactionsPage() {
         />
       </div>
 
-      {list.isLoading ? (
+      {list.isError ? (
+        <QueryError title="Could not load transactions" onRetry={() => void list.refetch()} />
+      ) : list.isLoading ? (
         <Spinner label="Loading transactions…" />
       ) : !list.data || list.data.results.length === 0 ? (
         <EmptyState
@@ -683,7 +688,7 @@ export function TransactionsPage() {
                   <td className="table-cell">
                     <p className="font-medium">{tx.merchant || '—'}</p>
                     {tx.notes ? (
-                      <p className="max-w-64 truncate text-xs" style={{ color: 'var(--muted)' }}>{tx.notes}</p>
+                      <p className="max-w-64 truncate caption-5" style={{ color: 'var(--muted)' }}>{tx.notes}</p>
                     ) : null}
                   </td>
                   <td className="table-cell">{tx.category_name ?? '—'}</td>
@@ -706,16 +711,16 @@ export function TransactionsPage() {
               ))}
             </tbody>
           </table>
-          <div className="flex items-center justify-between px-4 py-3 text-sm">
+          <div className="flex items-center justify-between px-4 py-3 body-6">
             <span style={{ color: 'var(--muted)' }}>
               {list.data.count} transaction(s) · page {page} of {totalPages}
             </span>
             <div className="flex gap-2">
               <button type="button" className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                ← Prev
+                <IconChevronLeft size={16} /> Prev
               </button>
               <button type="button" className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next →
+                Next <IconChevronRight size={16} />
               </button>
             </div>
           </div>
@@ -751,7 +756,7 @@ export function TransactionsPage() {
 
       {deleting ? (
         <Modal title="Delete transaction?" onClose={() => setDeleting(null)}>
-          <p className="text-sm">
+          <p className="body-6">
             Delete “{deleting.merchant || deleting.category_name || 'transaction'}” for{' '}
             {fmtMoney(deleting.amount)} on {fmtDate(deleting.date)}? Account balances
             update automatically.

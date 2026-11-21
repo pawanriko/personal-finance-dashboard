@@ -4,16 +4,16 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { insforgeSignInWithOAuth, isInsforgeConfigured } from '../lib/insforge';
-import { FieldError } from '../components/ui';
+import { FieldError, TaglineReveal } from '../components/ui';
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <div className="auth-bg flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="mb-5 flex flex-col items-center gap-2 text-center">
+        <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <span
-            className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl font-bold text-white shadow-lg"
-            style={{ background: 'var(--accent)' }}
+            className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl font-bold shadow-lg"
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
             aria-hidden
           >
             ₹
@@ -28,6 +28,13 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle: str
             {subtitle}
           </p>
           <div className="mt-6">{children}</div>
+        </div>
+        {/* Tagline reveal (skill B11): the app's core benefit, below
+            the card — the entry surface's one quiet statement. */}
+        <div className="mt-8 flex justify-center px-2">
+          <TaglineReveal
+            lines={['Know where every rupee goes.', 'Spend with a clear head.']}
+          />
         </div>
       </div>
     </div>
@@ -109,7 +116,7 @@ function OAuthButtons({
       </div>
       <div className="my-4 flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
-        <span className="text-xs" style={{ color: 'var(--muted)' }}>
+        <span className="caption-5" style={{ color: 'var(--muted)' }}>
           or continue with
         </span>
         <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
@@ -171,7 +178,7 @@ export function LoginPage() {
     <AuthShell title="Welcome back" subtitle="Log in to your finance dashboard.">
       <OAuthButtons disabled={busy || oauthBusy} onError={setError} />
       {oauthBusy && (
-        <p className="mb-4 text-center text-sm" style={{ color: 'var(--muted)' }}>
+        <p className="mb-4 text-center body-6" style={{ color: 'var(--muted)' }}>
           Completing your Google/GitHub sign-in…
         </p>
       )}

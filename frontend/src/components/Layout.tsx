@@ -1,17 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
+import { playThemeRipple } from '../lib/themeRipple';
 import { initials } from '../lib/utils';
+import {
+  IconAccounts,
+  IconBudgets,
+  IconDashboard,
+  IconGoals,
+  IconReports,
+  IconSettings,
+  IconTransactions,
+} from './icons';
 
-const NAV = [
-  { to: '/', label: 'Dashboard', icon: '▦', end: true },
-  { to: '/transactions', label: 'Transactions', icon: '⇄' },
-  { to: '/budgets', label: 'Budgets', icon: '◔' },
-  { to: '/accounts', label: 'Accounts', icon: '▤' },
-  { to: '/reports', label: 'Reports', icon: '▧' },
-  { to: '/goals', label: 'Goals', icon: '◎' },
-  { to: '/settings', label: 'Settings', icon: '⚙' },
+/* Nav icons are clean inline SVGs (see components/icons.tsx) — one
+   consistent stroke set. */
+const NAV: { to: string; label: string; icon: ReactNode; end?: boolean }[] = [
+  { to: '/', label: 'Dashboard', icon: <IconDashboard size={16} />, end: true },
+  { to: '/transactions', label: 'Transactions', icon: <IconTransactions size={16} /> },
+  { to: '/budgets', label: 'Budgets', icon: <IconBudgets size={16} /> },
+  { to: '/accounts', label: 'Accounts', icon: <IconAccounts size={16} /> },
+  { to: '/reports', label: 'Reports', icon: <IconReports size={16} /> },
+  { to: '/goals', label: 'Goals', icon: <IconGoals size={16} /> },
+  { to: '/settings', label: 'Settings', icon: <IconSettings size={16} /> },
 ];
 
 function ProfileMenu() {
@@ -39,8 +52,8 @@ function ProfileMenu() {
         aria-expanded={open}
       >
         <span
-          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{ background: 'var(--accent)' }}
+          className="flex h-8 w-8 items-center justify-center rounded-full caption-3"
+          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
         >
           {initials(user.username)}
         </span>
@@ -91,110 +104,74 @@ export function Layout() {
   const { theme, toggle } = useTheme();
   const location = useLocation();
 
+  // Round theme toggle + water ripple: the new theme spreads from the
+  // button's centre across the page (both directions).
+  const onToggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    playThemeRipple(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+      toggle,
+    );
+  };
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      {/* Sidebar (desktop) */}
-      <aside
-        className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r p-4 md:flex"
+      {/* Top bar (v2): HireSense-style — big wordmark, horizontal nav,
+          theme toggle + profile at the top-right. No sidebar, no rupee logo. */}
+      <header
+        className="sticky top-0 z-40 border-b shadow-sm"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <div className="mb-6 flex items-center gap-2 px-2">
-          <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white"
-            style={{ background: 'var(--accent)' }}
-            aria-hidden
-          >
-            ₹
-          </span>
-          <div>
-            <p className="title-3 leading-tight">Personal Finance</p>
-            <p className="caption-5" style={{ color: 'var(--muted)' }}>
-              Dashboard
-            </p>
-          </div>
-        </div>
-        <nav className="flex flex-col gap-1">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-            >
-              <span aria-hidden>{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <p className="caption-5 mt-auto px-2" style={{ color: 'var(--muted)' }}>
-          Money is stored as exact decimals. Transfers never count as income or
-          spending.
-        </p>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Topbar */}
-        <header
-          className="sticky top-0 z-40 flex items-center gap-2 border-b px-4 py-3 shadow-sm"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <p className="body-4 flex items-center gap-2 md:hidden">
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white"
-              style={{ background: 'var(--accent)' }}
-              aria-hidden
-            >
-              ₹
-            </span>
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+          <NavLink to="/" end className="topbar-wordmark" aria-label="Personal Finance — home">
             Personal Finance
-          </p>
+          </NavLink>
+          <nav
+            className="blur-siblings topbar-nav order-3 flex w-full gap-1 overflow-x-auto md:order-none md:w-auto md:flex-1 md:justify-center"
+            aria-label="Primary"
+          >
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `nav-link topbar-nav-link shrink-0 ${isActive ? 'active' : ''}`
+                }
+              >
+                <span aria-hidden>{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              onClick={toggle}
-              className="btn btn-ghost btn-sm"
+              onClick={onToggleTheme}
+              className="btn btn-ghost h-10 w-10 rounded-full p-0 text-base"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
             >
-              {theme === 'dark' ? '☀ Light' : '☾ Dark'}
+              {theme === 'dark' ? '☀' : '☾'}
             </button>
             <ProfileMenu />
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Mobile nav */}
-        <nav
-          className="flex gap-1 overflow-x-auto border-b px-3 py-2 md:hidden"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `nav-link shrink-0 ${isActive ? 'active' : ''}`
-              }
-            >
-              <span aria-hidden>{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* Page content — keyed by path so each navigation replays the
-            subtle page transition. */}
-        <main
-          id="main-content"
-          key={location.pathname}
-          className="anim-page mx-auto w-full max-w-6xl flex-1 p-4 md:p-6"
-        >
-          <Outlet />
-        </main>
-      </div>
+      {/* Page content — keyed by path so each navigation replays the
+          subtle page transition. */}
+      <main
+        id="main-content"
+        key={location.pathname}
+        className="anim-page mx-auto w-full max-w-6xl flex-1 p-4 md:p-6"
+      >
+        <Outlet />
+      </main>
     </div>
   );
 }

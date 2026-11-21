@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, ApiError } from '../lib/api';
 import type { Account, CsvImport } from '../lib/types';
 import { fmtDate } from '../lib/utils';
-import { FieldError, Spinner } from '../components/ui';
+import { FieldError, QueryError, Spinner } from '../components/ui';
 
 const CSV_FIELDS = ['date', 'amount', 'type', 'merchant', 'category', 'notes'] as const;
 
@@ -95,7 +95,7 @@ export function CsvImportPage() {
       <div>
         <h1 className="heading-6">Import CSV</h1>
         <p className="body-6" style={{ color: 'var(--muted)' }}>
-          Upload → preview with column mapping → confirm. Rows with errors or
+          Upload, preview with column mapping, then confirm. Rows with errors or
           likely duplicates are never imported unless you explicitly select them
           (duplicates stay blocked).
         </p>
@@ -193,7 +193,7 @@ export function CsvImportPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+            <p className="mt-3 caption-5" style={{ color: 'var(--muted)' }}>
               Change a mapping and press “Re-parse” to re-read the file with the new
               columns. Amounts with a minus sign or (parentheses) are treated as
               expenses when no type column is mapped.
@@ -243,7 +243,7 @@ export function CsvImportPage() {
                         {row.errors.length > 0 ? (
                           <span className="badge badge-red">{row.errors.join('; ')}</span>
                         ) : row.is_duplicate ? (
-                          <span className="badge badge-amber">likely duplicate</span>
+                          <span className="badge badge-grey">likely duplicate</span>
                         ) : (
                           <span className="badge badge-green">valid</span>
                         )}
@@ -274,12 +274,14 @@ export function CsvImportPage() {
 
       <div className="card p-4">
         <h2 className="title-4 mb-2">Past imports</h2>
-        {historyQ.isLoading ? (
+        {historyQ.isError ? (
+          <QueryError title="Could not load imports" onRetry={() => void historyQ.refetch()} />
+        ) : historyQ.isLoading ? (
           <Spinner label="Loading imports…" />
         ) : !historyQ.data || historyQ.data.length === 0 ? (
           <p className="body-6" style={{ color: 'var(--muted)' }}>No imports yet.</p>
         ) : (
-          <ul className="flex flex-col divide-y text-sm" style={{ borderColor: 'var(--border)' }}>
+          <ul className="flex flex-col divide-y body-6" style={{ borderColor: 'var(--border)' }}>
             {historyQ.data.map((imp) => (
               <li key={imp.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span>

@@ -18,7 +18,18 @@ import { api } from '../lib/api';
 import type { DashboardSummary } from '../lib/types';
 import { fmtDate, fmtMoney, fmtMonthLabel, monthEnd, monthStart, shiftMonth } from '../lib/utils';
 import { CountUp, EmptyState, ProgressBar, Spinner, Stat } from '../components/ui';
-import { CATEGORY_COLORS, EXPENSE_FILL, INCOME_FILL, MoneyTooltip } from '../components/charts';
+import { EXPENSE_FILL, INCOME_FILL, MoneyTooltip, legendText, useCategoryColors } from '../components/charts';
+import {
+  IconArrowDown,
+  IconArrowRight,
+  IconArrowUp,
+  IconChevronLeft,
+  IconChevronRight,
+  IconCode,
+  IconGithub,
+  IconLinkedin,
+  IconTransactions,
+} from '../components/icons';
 
 function deltaLabel(current: string, previous: string): string {
   const c = Number(current);
@@ -31,6 +42,7 @@ function deltaLabel(current: string, previous: string): string {
 export function DashboardPage() {
   const now = new Date();
   const [month, setMonth] = useState(monthStart(now));
+  const categoryColors = useCategoryColors();
   const start = month;
   const end = monthEnd(new Date(`${month}T00:00:00`));
 
@@ -87,13 +99,13 @@ export function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMonth((m) => shiftMonth(m, -1))}>
-            ← Prev
+            <IconChevronLeft size={16} /> Prev
           </button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMonth(monthStart(new Date()))}>
             This month
           </button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMonth((m) => shiftMonth(m, 1))}>
-            Next →
+            Next <IconChevronRight size={16} />
           </button>
         </div>
       </div>
@@ -111,20 +123,20 @@ export function DashboardPage() {
         />
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="hero card card-hover col-span-2 p-6 lg:col-span-1">
+      <div className="blur-siblings lift-on-hover grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="hero card card-hover col-span-2 p-6">
           <div className="flex items-center gap-2">
-            <span className="stat-icon gold" aria-hidden>
+            <span className="stat-icon" aria-hidden>
               ₹
             </span>
             <p className="hero-label caption-4">Total balance</p>
           </div>
           {balances.map(([currency, total]) => (
-            <p key={currency} className="heading-4 mt-2 tabular-nums">
+            <p key={currency} className="hero-balance heading-4 mt-2 tabular-nums">
               <CountUp value={Number(total)} format={(n) => fmtMoney(n.toFixed(2), currency)} />
             </p>
           ))}
-          {balances.length === 0 ? <p className="heading-4 mt-2">—</p> : null}
+          {balances.length === 0 ? <p className="hero-balance heading-4 mt-2">—</p> : null}
           <p className="hero-sub caption-5 mt-1">
             {balances.length} account{balances.length === 1 ? '' : 's'} · {fmtMonthLabel(month)}
           </p>
@@ -134,7 +146,7 @@ export function DashboardPage() {
           value={fmtMoney(d.income)}
           sub={deltaLabel(d.income, d.previous_period.income)}
           tone="good"
-          icon="↑"
+          icon={<IconArrowUp size={16} />}
           countTo={Number(d.income)}
           format={(n) => fmtMoney(n.toFixed(2))}
         />
@@ -143,7 +155,7 @@ export function DashboardPage() {
           value={fmtMoney(d.expenses)}
           sub={deltaLabel(d.expenses, d.previous_period.expenses)}
           tone="bad"
-          icon="↓"
+          icon={<IconArrowDown size={16} />}
           countTo={Number(d.expenses)}
           format={(n) => fmtMoney(n.toFixed(2))}
         />
@@ -152,7 +164,7 @@ export function DashboardPage() {
           value={fmtMoney(d.net)}
           sub={deltaLabel(d.net, d.previous_period.net)}
           tone={Number(d.net) >= 0 ? 'good' : 'bad'}
-          icon="⇄"
+          icon={<IconTransactions size={16} />}
           countTo={Number(d.net)}
           format={(n) => fmtMoney(n.toFixed(2))}
         />
@@ -177,15 +189,15 @@ export function DashboardPage() {
                     outerRadius={88}
                     paddingAngle={2}
                     cornerRadius={4}
-                    stroke="var(--surface)"
+                    stroke="var(--border)"
                     strokeWidth={2}
                   >
                     {pieData.map((entry, i) => (
-                      <Cell key={entry.name} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                      <Cell key={entry.name} fill={categoryColors[i % categoryColors.length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<MoneyTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} formatter={legendText} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-6">
@@ -211,7 +223,7 @@ export function DashboardPage() {
                   <XAxis dataKey="month" tick={{ fill: 'var(--muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: 'var(--muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<MoneyTooltip />} cursor={{ fill: 'var(--surface-2)' }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} formatter={legendText} />
                   <Bar dataKey="income" fill={INCOME_FILL} name="Income" radius={[6, 6, 0, 0]} maxBarSize={28} />
                   <Bar dataKey="expenses" fill={EXPENSE_FILL} name="Expenses" radius={[6, 6, 0, 0]} maxBarSize={28} />
                 </BarChart>
@@ -225,8 +237,8 @@ export function DashboardPage() {
         <div className="card anim-stagger p-4" style={{ '--d': '180ms' } as React.CSSProperties}>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="title-4">Budget status</h2>
-            <Link to="/budgets" className="caption-4" style={{ color: 'var(--accent)' }}>
-              All budgets →
+            <Link to="/budgets" className="caption-4 inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+              All budgets <IconArrowRight size={12} />
             </Link>
           </div>
           {d.budgets.length === 0 ? (
@@ -237,7 +249,7 @@ export function DashboardPage() {
             <ul className="flex flex-col gap-3">
               {d.budgets.map((b) => (
                 <li key={b.budget_id}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
+                  <div className="mb-1 flex items-center justify-between body-6">
                     <span>{b.category}</span>
                     <span className="tabular-nums" style={{ color: 'var(--muted)' }}>
                       {fmtMoney(b.spent)} of {fmtMoney(b.limit)} · {b.percent_used}%
@@ -252,8 +264,8 @@ export function DashboardPage() {
         <div className="card anim-stagger p-4" style={{ '--d': '240ms' } as React.CSSProperties}>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="title-4">Recent activity</h2>
-            <Link to="/transactions" className="caption-4" style={{ color: 'var(--accent)' }}>
-              All transactions →
+            <Link to="/transactions" className="caption-4 inline-flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+              All transactions <IconArrowRight size={12} />
             </Link>
           </div>
           {d.recent_transactions.length === 0 ? (
@@ -263,7 +275,7 @@ export function DashboardPage() {
           ) : (
             <ul className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
               {d.recent_transactions.map((tx) => (
-                <li key={tx.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <li key={tx.id} className="flex items-center justify-between gap-3 py-2 body-6">
                   <div className="flex min-w-0 items-center gap-2">
                     <span
                       className="inline-block h-2 w-2 shrink-0 rounded-full"
@@ -280,7 +292,7 @@ export function DashboardPage() {
                   </div>
                   <span
                     className="shrink-0 font-medium tabular-nums"
-                    style={{ color: tx.type === 'income' ? 'var(--good)' : 'var(--danger)' }}
+                    style={{ color: tx.type === 'income' ? 'var(--text)' : 'var(--muted)' }}
                   >
                     {tx.type === 'income' ? '+' : '−'}
                     {fmtMoney(tx.amount)}
@@ -291,6 +303,40 @@ export function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Dashboard-only footer: "Made by Pawan" + his profiles. */}
+      <footer className="card mt-2 flex flex-col items-center gap-3 px-6 py-6 text-center">
+        <p className="title-3">Made by Pawan</p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <a
+            href="https://github.com/pawanriko"
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost btn-sm"
+          >
+            <IconGithub size={16} /> GitHub
+          </a>
+          <a
+            href="https://www.linkedin.com/in/pawanriko"
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost btn-sm"
+          >
+            <IconLinkedin size={16} /> LinkedIn
+          </a>
+          <a
+            href="https://leetcode.com/pawanriko"
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost btn-sm"
+          >
+            <IconCode size={16} /> LeetCode
+          </a>
+        </div>
+        <p className="caption-5" style={{ color: 'var(--muted)' }}>
+          Personal Finance Dashboard · Pawan Kumar
+        </p>
+      </footer>
     </div>
   );
 }

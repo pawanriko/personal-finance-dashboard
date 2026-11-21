@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, ApiError } from '../lib/api';
 import type { Account, Paginated, Transaction } from '../lib/types';
 import { fmtDate, fmtMoney } from '../lib/utils';
-import { CountUp, EmptyState, FieldError, Modal, Spinner } from '../components/ui';
+import { CountUp, EmptyState, FieldError, Modal, QueryError, Spinner } from '../components/ui';
+import { IconAccounts, IconBank, IconCard, IconCash, IconSavings } from '../components/icons';
 
 const ACCOUNT_TYPES = [
-  { value: 'checking', label: 'Checking', icon: '▤' },
-  { value: 'savings', label: 'Savings', icon: '◔' },
-  { value: 'credit_card', label: 'Credit Card', icon: '▬' },
-  { value: 'cash', label: 'Cash', icon: '●' },
+  { value: 'checking', label: 'Checking', icon: <IconBank size={16} /> },
+  { value: 'savings', label: 'Savings', icon: <IconSavings size={16} /> },
+  { value: 'credit_card', label: 'Credit Card', icon: <IconCard size={16} /> },
+  { value: 'cash', label: 'Cash', icon: <IconCash size={16} /> },
 ] as const;
 
 function AccountForm({
@@ -88,7 +89,7 @@ function AccountForm({
           required
         />
       </div>
-      <p className="text-xs" style={{ color: 'var(--muted)' }}>
+      <p className="caption-5" style={{ color: 'var(--muted)' }}>
         The balance is always computed from the opening balance plus the
         transaction ledger — it can never go stale.
       </p>
@@ -108,6 +109,7 @@ function AccountHistory({ account }: { account: Account }) {
     queryKey: ['account-history', account.id],
     queryFn: () => api.get<Paginated<Transaction>>(`/accounts/${account.id}/history/`),
   });
+  if (history.isError) return <QueryError title="Could not load account history" onRetry={() => void history.refetch()} />;
   if (history.isLoading) return <Spinner label="Loading history…" />;
   if (!history.data || history.data.results.length === 0) {
     return <p className="body-6" style={{ color: 'var(--muted)' }}>No transactions on this account yet.</p>;
@@ -185,7 +187,9 @@ export function AccountsPage() {
         </button>
       </div>
 
-      {list.isLoading ? (
+      {list.isError ? (
+        <QueryError title="Could not load accounts" onRetry={() => void list.refetch()} />
+      ) : list.isLoading ? (
         <Spinner label="Loading accounts…" />
       ) : accounts.length === 0 ? (
         <EmptyState
@@ -201,11 +205,11 @@ export function AccountsPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
                   <span className="stat-icon" aria-hidden>
-                    {ACCOUNT_TYPES.find((x) => x.value === a.type)?.icon ?? '▤'}
+                    {ACCOUNT_TYPES.find((x) => x.value === a.type)?.icon ?? <IconAccounts size={16} />}
                   </span>
                   <div>
                     <p className="font-medium">{a.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                    <p className="caption-5" style={{ color: 'var(--muted)' }}>
                       {typeLabel(a.type)} · {a.currency}
                     </p>
                   </div>
@@ -213,12 +217,12 @@ export function AccountsPage() {
                 {!a.is_active ? <span className="badge badge-grey">inactive</span> : null}
               </div>
               <p
-                className="mt-3 text-2xl font-semibold tabular-nums"
+                className="mt-3 heading-5 tabular-nums"
                 style={{ color: Number(a.balance) < 0 ? 'var(--danger)' : 'var(--text)' }}
               >
                 <CountUp value={Number(a.balance)} format={(n) => fmtMoney(n.toFixed(2), a.currency)} />
               </p>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              <p className="caption-5" style={{ color: 'var(--muted)' }}>
                 Opening {fmtMoney(a.opening_balance, a.currency)}
               </p>
               <div className="mt-3 flex gap-2">
@@ -248,7 +252,7 @@ export function AccountsPage() {
       ) : null}
       {deleting ? (
         <Modal title="Delete account?" onClose={() => setDeleting(null)}>
-          <p className="text-sm">
+          <p className="body-6">
             Delete “{deleting.name}” (balance {fmtMoney(deleting.balance, deleting.currency)})?
             Its transactions are deleted with it.
           </p>

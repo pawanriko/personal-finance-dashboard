@@ -3,9 +3,11 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { queryClient } from './lib/queryClient';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ThemeProvider } from './lib/theme';
+import { CursorGlow } from './components/CursorGlow';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
 import { LoginPage, RegisterPage } from './pages/Auth';
+import { NotFoundPage } from './pages/NotFound';
 import { DashboardPage } from './pages/Dashboard';
 import { TransactionsPage } from './pages/Transactions';
 import { CsvImportPage } from './pages/CsvImport';
@@ -31,6 +33,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <ThemeProvider>
+      {/* Cursor glow on every page, including login/register. */}
+      <CursorGlow />
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
@@ -53,7 +57,7 @@ export default function App() {
                 <Route path="/goals" element={<GoalsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </BrowserRouter>
         </QueryClientProvider>

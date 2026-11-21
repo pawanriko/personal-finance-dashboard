@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, qs, ApiError } from '../lib/api';
 import type { Budget, Category } from '../lib/types';
 import { fmtMoney, monthStart, shiftMonth, fmtMonthLabel } from '../lib/utils';
-import { EmptyState, FieldError, Modal, ProgressBar, ProgressRing, Spinner } from '../components/ui';
+import { EmptyState, FieldError, Modal, ProgressBar, ProgressRing, QueryError, Spinner } from '../components/ui';
+import { IconChevronLeft, IconChevronRight } from '../components/icons';
 
 function BudgetForm({
   initial,
@@ -80,7 +81,7 @@ function BudgetForm({
           required
         />
       </div>
-      <p className="text-xs" style={{ color: 'var(--muted)' }}>
+      <p className="caption-5" style={{ color: 'var(--muted)' }}>
         Budgets apply to one month only and do not carry forward.
       </p>
       <FieldError message={error} />
@@ -131,14 +132,16 @@ export function BudgetsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMonth((m) => shiftMonth(m, -1))}>← Prev</button>
-          <span className="text-sm font-medium">{fmtMonthLabel(month)}</span>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMonth((m) => shiftMonth(m, 1))}>Next →</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMonth((m) => shiftMonth(m, -1))}><IconChevronLeft size={16} /> Prev</button>
+          <span className="body-5">{fmtMonthLabel(month)}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMonth((m) => shiftMonth(m, 1))}>Next <IconChevronRight size={16} /></button>
           <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>+ Add budget</button>
         </div>
       </div>
 
-      {list.isLoading ? (
+      {list.isError ? (
+        <QueryError title="Could not load budgets" onRetry={() => void list.refetch()} />
+      ) : list.isLoading ? (
         <Spinner label="Loading budgets…" />
       ) : budgets.length === 0 ? (
         <EmptyState
@@ -156,19 +159,19 @@ export function BudgetsPage() {
                   <ProgressRing percent={b.percent_used} status={b.status} size={72} stroke={8} label={`${b.category_name} budget ${b.percent_used} percent used`} />
                   <div>
                     <p className="font-medium">{b.category_name}</p>
-                    <p className="text-sm tabular-nums" style={{ color: 'var(--muted)' }}>
+                    <p className="body-6 tabular-nums" style={{ color: 'var(--muted)' }}>
                       {fmtMoney(b.spent)} of {fmtMoney(b.limit)}
                     </p>
                   </div>
                 </div>
-                <span className={`badge shrink-0 ${b.status === 'over' ? 'badge-red' : b.status === 'near' ? 'badge-amber' : 'badge-green'}`}>
+                <span className={`badge shrink-0 ${b.status === 'over' ? 'badge-red' : b.status === 'near' ? 'badge-near' : 'badge-green'}`}>
                   {b.status === 'over' ? 'Over budget' : b.status === 'near' ? 'Near limit' : 'On track'}
                 </span>
               </div>
               <div className="mt-3">
                 <ProgressBar percent={b.percent_used} status={b.status} />
               </div>
-              <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 body-6" style={{ color: 'var(--muted)' }}>
                 {Number(b.remaining) >= 0
                   ? `${fmtMoney(b.remaining)} remaining`
                   : `${fmtMoney(String(Math.abs(Number(b.remaining))))} over`}
@@ -194,7 +197,7 @@ export function BudgetsPage() {
       ) : null}
       {deleting ? (
         <Modal title="Delete budget?" onClose={() => setDeleting(null)}>
-          <p className="text-sm">
+          <p className="body-6">
             Delete the {deleting.category_name} budget for {fmtMonthLabel(month)} ({fmtMoney(deleting.limit)})?
           </p>
           <div className="mt-4 flex justify-end gap-2">

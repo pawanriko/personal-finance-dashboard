@@ -17,7 +17,8 @@ import { api, qs } from '../lib/api';
 import type { ReportsSummary } from '../lib/types';
 import { fmtDate, fmtMoney, fmtMonthLabel, monthEnd, monthStart, todayIso } from '../lib/utils';
 import { EmptyState, Spinner, Stat } from '../components/ui';
-import { CATEGORY_COLORS, EXPENSE_FILL, INCOME_FILL, MoneyTooltip } from '../components/charts';
+import { EXPENSE_FILL, INCOME_FILL, MoneyTooltip, legendText, useCategoryColors } from '../components/charts';
+import { IconArrowDown, IconArrowUp, IconTransactions } from '../components/icons';
 
 function deltaLabel(current: string, previous: string): string {
   const c = Number(current);
@@ -30,6 +31,7 @@ function deltaLabel(current: string, previous: string): string {
 export function ReportsPage() {
   const now = new Date();
   const [start, setStart] = useState(monthStart(now));
+  const categoryColors = useCategoryColors();
   const [end, setEnd] = useState(monthEnd(now));
 
   const query = useQuery({
@@ -115,15 +117,15 @@ export function ReportsPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-            <Stat label="Income" value={fmtMoney(query.data.income)} sub={deltaLabel(query.data.income, query.data.previous_period.income)} tone="good" icon="↑" countTo={Number(query.data.income)} format={(n) => fmtMoney(n.toFixed(2))} />
-            <Stat label="Expenses" value={fmtMoney(query.data.expenses)} sub={deltaLabel(query.data.expenses, query.data.previous_period.expenses)} tone="bad" icon="↓" countTo={Number(query.data.expenses)} format={(n) => fmtMoney(n.toFixed(2))} />
+          <div className="blur-siblings lift-on-hover grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <Stat label="Income" value={fmtMoney(query.data.income)} sub={deltaLabel(query.data.income, query.data.previous_period.income)} tone="good" icon={<IconArrowUp size={16} />} countTo={Number(query.data.income)} format={(n) => fmtMoney(n.toFixed(2))} />
+            <Stat label="Expenses" value={fmtMoney(query.data.expenses)} sub={deltaLabel(query.data.expenses, query.data.previous_period.expenses)} tone="bad" icon={<IconArrowDown size={16} />} countTo={Number(query.data.expenses)} format={(n) => fmtMoney(n.toFixed(2))} />
             <Stat
               label="Net"
               value={fmtMoney(query.data.net)}
               sub={`${fmtDate(query.data.period.start)} – ${fmtDate(query.data.period.end)}`}
               tone={Number(query.data.net) >= 0 ? 'good' : 'bad'}
-              icon="⇄"
+              icon={<IconTransactions size={16} />}
               countTo={Number(query.data.net)}
               format={(n) => fmtMoney(n.toFixed(2))}
             />
@@ -146,15 +148,15 @@ export function ReportsPage() {
                         outerRadius={98}
                         paddingAngle={2}
                         cornerRadius={4}
-                        stroke="var(--surface)"
+                        stroke="var(--border)"
                         strokeWidth={2}
                       >
                         {pieData.map((entry, i) => (
-                          <Cell key={entry.name} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                          <Cell key={entry.name} fill={categoryColors[i % categoryColors.length]} />
                         ))}
                       </Pie>
                       <Tooltip content={<MoneyTooltip />} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} formatter={legendText} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-6">
@@ -190,7 +192,7 @@ export function ReportsPage() {
                       <XAxis dataKey="month" tick={{ fill: 'var(--muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'var(--muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
                       <Tooltip content={<MoneyTooltip />} cursor={{ fill: 'var(--surface-2)' }} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} formatter={legendText} />
                       <Bar dataKey="income" fill={INCOME_FILL} name="Income" radius={[6, 6, 0, 0]} maxBarSize={28} />
                       <Bar dataKey="expenses" fill={EXPENSE_FILL} name="Expenses" radius={[6, 6, 0, 0]} maxBarSize={28} />
                     </BarChart>

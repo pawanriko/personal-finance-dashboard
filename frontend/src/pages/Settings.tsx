@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, qs, ApiError } from '../lib/api';
 import type { Category, Profile } from '../lib/types';
 import { useAuth } from '../lib/auth';
-import { FieldError, Modal, Spinner } from '../components/ui';
+import { FieldError, Modal, QueryError, Spinner } from '../components/ui';
+import { IconCheck } from '../components/icons';
 
 const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'SGD'];
 
@@ -138,7 +139,7 @@ export function SettingsPage() {
 
   function categoryRow(c: Category) {
     return (
-      <li key={c.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+      <li key={c.id} className="flex items-center justify-between gap-2 py-2 body-6">
         <span>
           {c.parent ? '— ' : ''}
           {c.name}
@@ -163,18 +164,20 @@ export function SettingsPage() {
 
       <div className="card p-4">
         <h2 className="title-4 mb-3">Profile</h2>
-        {profileQ.isLoading ? (
+        {profileQ.isError ? (
+          <QueryError title="Could not load profile" onRetry={() => void profileQ.refetch()} />
+        ) : profileQ.isLoading ? (
           <Spinner label="Loading profile…" />
         ) : (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Username</label>
-                <p className="text-sm font-medium">{user?.username}</p>
+                <p className="body-5">{user?.username}</p>
               </div>
               <div>
                 <label className="label">Email</label>
-                <p className="text-sm font-medium">{user?.email || '—'}</p>
+                <p className="body-5">{user?.email || '—'}</p>
               </div>
             </div>
             <div>
@@ -196,7 +199,7 @@ export function SettingsPage() {
                   disabled={saveProfile.isPending || currentCurrency === profileQ.data?.default_currency}
                   onClick={() => saveProfile.mutate()}
                 >
-                  {saveProfile.isPending ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
+                  {saveProfile.isPending ? 'Saving…' : saved ? (<span className="inline-flex items-center gap-1">Saved <IconCheck size={16} /></span>) : 'Save'}
                 </button>
               </div>
             </div>
@@ -216,7 +219,9 @@ export function SettingsPage() {
             </button>
           </div>
         </div>
-        {categoriesQ.isLoading ? (
+        {categoriesQ.isError ? (
+          <QueryError title="Could not load categories" onRetry={() => void categoriesQ.refetch()} />
+        ) : categoriesQ.isLoading ? (
           <Spinner label="Loading categories…" />
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
@@ -238,7 +243,7 @@ export function SettingsPage() {
             </div>
           </div>
         )}
-        <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+        <p className="mt-3 caption-5" style={{ color: 'var(--muted)' }}>
           Deleting a category leaves its transactions uncategorised. Deleting a
           parent category also deletes its sub-categories.
         </p>
@@ -264,7 +269,7 @@ export function SettingsPage() {
             Export this month’s report (CSV)
           </button>
         </div>
-        <p className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+        <p className="mt-3 caption-5" style={{ color: 'var(--muted)' }}>
           Your data is yours: export it any time. Deleting the whole account
           (user + all data) is not wired to an API endpoint yet — that is a
           backend gap to close before launch, not something the UI fakes.
@@ -283,7 +288,7 @@ export function SettingsPage() {
       ) : null}
       {deleting ? (
         <Modal title="Delete category?" onClose={() => setDeleting(null)}>
-          <p className="text-sm">
+          <p className="body-6">
             Delete “{deleting.name}” ({deleting.type})? Its transactions become
             uncategorised{deleting.children.length > 0 ? `, and its ${deleting.children.length} sub-categor(ies) are deleted too` : ''}.
           </p>

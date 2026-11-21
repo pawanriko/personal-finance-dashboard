@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fetchAll, qs, ApiError } from '../lib/api';
 import type { Account, Goal, GoalContribution } from '../lib/types';
 import { fmtDate, fmtMoney, todayIso } from '../lib/utils';
-import { EmptyState, FieldError, Modal, ProgressBar, ProgressRing, Spinner } from '../components/ui';
+import { EmptyState, FieldError, Modal, ProgressBar, ProgressRing, QueryError, Spinner } from '../components/ui';
+import { IconGoals } from '../components/icons';
 
 function GoalForm({
   initial,
@@ -113,12 +114,12 @@ function GoalDetail({ goal }: { goal: Goal }) {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="mb-1 flex justify-between text-sm">
+        <div className="mb-1 flex justify-between body-6">
           <span>{fmtMoney(goal.current_amount)} saved</span>
           <span style={{ color: 'var(--muted)' }}>{goal.progress_percent}%</span>
         </div>
         <ProgressBar percent={goal.progress_percent} />
-        <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
+        <p className="mt-2 body-6" style={{ color: 'var(--muted)' }}>
           {fmtMoney(goal.remaining_amount)} to go
           {goal.target_date ? ` · target ${fmtDate(goal.target_date)}` : ''}
           {goal.account_name ? ` · in ${goal.account_name}` : ''}
@@ -149,16 +150,18 @@ function GoalDetail({ goal }: { goal: Goal }) {
         </button>
       </form>
       <FieldError message={error} />
-      <p className="text-xs" style={{ color: 'var(--muted)' }}>
+      <p className="caption-5" style={{ color: 'var(--muted)' }}>
         Contributions only track progress toward the target — they do not move
         money between accounts.
       </p>
-      {list.isLoading ? (
+      {list.isError ? (
+        <QueryError title="Could not load contributions" onRetry={() => void list.refetch()} />
+      ) : list.isLoading ? (
         <Spinner label="Loading contributions…" />
       ) : !list.data || list.data.length === 0 ? (
         <p className="body-6" style={{ color: 'var(--muted)' }}>No contributions yet.</p>
       ) : (
-        <ul className="flex flex-col divide-y text-sm" style={{ borderColor: 'var(--border)' }}>
+        <ul className="flex flex-col divide-y body-6" style={{ borderColor: 'var(--border)' }}>
           {list.data.map((c) => (
             <li key={c.id} className="flex items-center justify-between gap-2 py-2">
               <span>
@@ -207,7 +210,9 @@ export function GoalsPage() {
         <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>+ Add goal</button>
       </div>
 
-      {list.isLoading ? (
+      {list.isError ? (
+        <QueryError title="Could not load goals" onRetry={() => void list.refetch()} />
+      ) : list.isLoading ? (
         <Spinner label="Loading goals…" />
       ) : goals.length === 0 ? (
         <EmptyState
@@ -225,20 +230,20 @@ export function GoalsPage() {
                   <ProgressRing percent={g.progress_percent} size={72} stroke={8} label={`${g.name} goal ${g.progress_percent} percent reached`} />
                   <div>
                     <p className="font-medium">{g.name}</p>
-                    <p className="text-sm tabular-nums" style={{ color: 'var(--muted)' }}>
+                    <p className="body-6 tabular-nums" style={{ color: 'var(--muted)' }}>
                       {fmtMoney(g.current_amount)} of {fmtMoney(g.target_amount)}
                       {g.target_date ? ` · by ${fmtDate(g.target_date)}` : ''}
                     </p>
                   </div>
                 </div>
-                <span className="caption-3 shrink-0 rounded-full px-2 py-1" style={{ background: 'var(--gold-soft)', color: 'var(--gold)' }}>
-                  ◎ Goal
+                <span className="caption-3 inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  <IconGoals size={12} /> Goal
                 </span>
               </div>
               <div className="mt-3">
                 <ProgressBar percent={g.progress_percent} />
               </div>
-              <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
+              <p className="mt-2 body-6" style={{ color: 'var(--muted)' }}>
                 {fmtMoney(g.remaining_amount)} remaining
               </p>
               <div className="mt-3 flex gap-2">
@@ -268,7 +273,7 @@ export function GoalsPage() {
       ) : null}
       {deleting ? (
         <Modal title="Delete goal?" onClose={() => setDeleting(null)}>
-          <p className="text-sm">
+          <p className="body-6">
             Delete “{deleting.name}” (target {fmtMoney(deleting.target_amount)})? Its
             contributions are deleted with it.
           </p>

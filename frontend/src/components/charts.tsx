@@ -2,18 +2,55 @@
  *  chart in the app reads as the same product. Fills are flat colours
  *  (skill B4 — no gradients in backgrounds). */
 
+import { useTheme } from '../lib/theme';
+
+/** Monochrome category palette (light theme): greys only, from
+ *  near-black to pale grey, plus two neutral slates for overflow
+ *  categories. No colour at all — categories are told apart by grey
+ *  depth and the legend. */
+
 export const CATEGORY_COLORS = [
-  '#0e9f6e', // emerald
-  '#0b6b4a', // deep emerald
-  '#d4a017', // gold
-  '#0284c7', // sky
-  '#7c3aed', // violet
-  '#db2777', // pink
-  '#ea580c', // orange
-  '#14b8a6', // teal
-  '#64748b', // slate
-  '#84cc16', // lime
+  '#000000', // black
+  '#404040', // dark grey
+  '#737373', // mid grey
+  '#a3a3a3', // grey
+  '#d4d4d4', // pale grey
+  '#262626', // near-black
+  '#525252', // charcoal
+  '#8a8a8a', // silver grey
+  '#e5e5e5', // very pale grey
+  '#171717', // soft black
 ];
+
+/** Dark-theme palette: the same greys reversed, brightest first, so
+ *  slices stay visible on a pure-black card (a black slice on black
+ *  would read as a hole). */
+export const CATEGORY_COLORS_DARK = [
+  '#ffffff', // white
+  '#d4d4d4', // pale grey
+  '#a3a3a3', // grey
+  '#737373', // mid grey
+  '#525252', // charcoal
+  '#e5e5e5', // very pale grey
+  '#8a8a8a', // silver grey
+  '#404040', // dark grey
+  '#262626', // near-black
+  '#f5f5f5', // near-white
+];
+
+/** Theme-aware palette for Pie/Bar cells. */
+export function useCategoryColors(): string[] {
+  const { theme } = useTheme();
+  return theme === 'dark' ? CATEGORY_COLORS_DARK : CATEGORY_COLORS;
+}
+
+/** Legend label formatter: Recharts colours legend text with the
+ *  series/cell colour, which would make dark-grey categories
+ *  unreadable on a black card — force the label to the theme text
+ *  colour and let only the swatch carry the category grey. */
+export function legendText(value: string) {
+  return <span style={{ color: 'var(--text)' }}>{value}</span>;
+}
 
 /** Flat fills for income/expense bars and areas, from the semantic
  *  money tokens. */
@@ -36,11 +73,11 @@ export function MoneyTooltip({
   if (!active || !payload || payload.length === 0) return null;
   return (
     <div
-      className="rounded-lg border px-3 py-2 text-sm shadow-lg"
+      className="rounded-lg border px-3 py-2 body-6 shadow-lg"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
     >
       {label !== undefined && label !== '' ? (
-        <p className="mb-1 text-xs font-semibold" style={{ color: 'var(--muted)' }}>
+        <p className="mb-1 caption-3" style={{ color: 'var(--muted)' }}>
           {label}
         </p>
       ) : null}
