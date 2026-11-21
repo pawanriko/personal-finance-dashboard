@@ -110,8 +110,36 @@ docker-compose.yml   backend + Postgres (frontend service comes later)
 Dockerfile
 ```
 
+## API reference
+
+Base: `/api/`. All endpoints require an authenticated session (except
+`auth/csrf`, `auth/register`, `auth/login`). Money is returned as
+2-decimal strings (e.g. `"120.50"`), never floats. Lists are paginated
+(50 per page).
+
+| Endpoint | What it does |
+| --- | --- |
+| `POST /api/auth/register/` | Create user (seeds 17 default categories) + log in |
+| `POST /api/auth/login/` / `POST /api/auth/logout/` | Session login / logout |
+| `GET /api/auth/me/` · `GET /api/auth/csrf/` | Current user · set the CSRF cookie |
+| `GET,PATCH /api/profile/` | Default currency + user info |
+| `GET,POST /api/accounts/` · `GET,PATCH,DELETE /api/accounts/{id}/` | Accounts; each carries computed `balance` |
+| `GET /api/accounts/{id}/history/?start&end` | Account ledger incl. transfer legs |
+| `GET,POST /api/categories/` · `POST /api/categories/seed-defaults/` | Categories (filter `?type=`, `?parent=null`); re-seed defaults |
+| `GET,POST /api/transactions/` | List (filters: `account`, `category`, `type`, `start`, `end`, `search`; `include_transfers=true` to see transfer legs) · create |
+| `GET,PATCH,DELETE /api/transactions/{id}/` · `GET /api/transactions/export/` | Edit/delete (balances update) · CSV download |
+| `GET,POST /api/transfers/` · `GET,PATCH,DELETE /api/transfers/{id}/` | Move money; legs auto-synced, never income/spending |
+| `GET,POST /api/recurring/` · `POST /api/recurring/{id}/generate-due/` · `POST /api/recurring/generate-all-due/` | Templates; generate due instances up to `up_to` (default today) |
+| `GET,POST /api/budgets/` · `GET,PATCH,DELETE /api/budgets/{id}/` | Monthly limits; `spent`, `remaining`, `percent_used`, `status` (`ok`/`near`/`over`); filter `?month=YYYY-MM-01` |
+| `GET,POST /api/goals/` · `GET,PATCH,DELETE /api/goals/{id}/` | Savings targets; `current_amount`, `remaining_amount`, `progress_percent` |
+| `GET,POST /api/goal-contributions/` | Contributions (`?goal=` filter) |
+| `POST /api/csv-imports/` | Upload CSV → preview (auto column mapping, per-row errors, duplicate flags) |
+| `POST /api/csv-imports/{id}/confirm/` | Import valid selected rows (`selected: [row numbers]`, optional) |
+| `GET /api/dashboard/?start&end` | Balances, income/expenses/net, previous-period comparison, spending by category, monthly series, recent transactions, budget progress |
+| `GET /api/reports/?start&end` · `GET /api/reports/export/` | Same aggregates as JSON · report as CSV |
+
 ## Status
 
 - ✅ Milestone 1: project scaffold, data model, migrations, Docker setup
-- 🔨 Milestone 2 (in progress): DRF API endpoints + test suite
+- ✅ Milestone 2: full DRF API + 50-test suite (all passing)
 - ⏳ Later: React frontend, then bank integrations

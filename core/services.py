@@ -114,6 +114,16 @@ def parse_type(raw):
     return None, f"unrecognised type: {raw!r}"
 
 
+def money_str(value):
+    """Render any Decimal as a 2-decimal string.
+
+    Money is always returned as a 2-decimal string in JSON/CSV output —
+    never a float, never a bare integer-looking string — so the frontend
+    and CSV consumers see exact values.
+    """
+    return str(Decimal(str(value)).quantize(Decimal("0.01")))
+
+
 def _norm_amount(value):
     """Normalise any Decimal/str amount to a 2-decimal string so keys
     compare equal regardless of how the value was written ('100' vs
@@ -305,7 +315,11 @@ def period_totals(user, start, end):
     )
     income = agg["income"] or ZERO
     expense = agg["expense"] or ZERO
-    return {"income": income, "expenses": expense, "net": income - expense}
+    return {
+        "income": money_str(income),
+        "expenses": money_str(expense),
+        "net": money_str(income - expense),
+    }
 
 
 def spending_by_category(user, start, end):
@@ -326,7 +340,7 @@ def spending_by_category(user, start, end):
     return [
         {
             "category": row["category__name"] or "Uncategorized",
-            "total": row["total"],
+            "total": money_str(row["total"]),
         }
         for row in qs
     ]
@@ -383,9 +397,9 @@ def dashboard_summary(user, start=None, end=None):
             {
                 "budget_id": budget.id,
                 "category": budget.category.name,
-                "limit": budget.limit,
-                "spent": spent,
-                "remaining": remaining,
+                "limit": money_str(budget.limit),
+                "spent": money_str(spent),
+                "remaining": money_str(remaining),
                 "percent_used": percent,
                 "status": status,
             }
@@ -393,7 +407,7 @@ def dashboard_summary(user, start=None, end=None):
 
     return {
         "period": {"start": start.isoformat(), "end": end.isoformat()},
-        "total_balances": {k: v for k, v in balances.items()},
+        "total_balances": {k: money_str(v) for k, v in balances.items()},
         "income": totals["income"],
         "expenses": totals["expenses"],
         "net": totals["net"],

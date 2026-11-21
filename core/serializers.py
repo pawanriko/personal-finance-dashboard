@@ -94,8 +94,12 @@ class AccountSerializer(CleanModelMixin, _UserScopedMixin, serializers.ModelSeri
         income = getattr(obj, "_income", None)
         expense = getattr(obj, "_expense", None)
         if income is not None and expense is not None:
-            return str(obj.opening_balance + income - expense)
-        return str(obj.balance())
+            value = obj.opening_balance + income - expense
+        else:
+            value = obj.balance()
+        from .services import money_str
+
+        return money_str(value)
 
 
 class CategorySerializer(CleanModelMixin, _UserScopedMixin, serializers.ModelSerializer):
@@ -180,11 +184,8 @@ class TransferSerializer(
         ]
         read_only_fields = ["created_at", "updated_at"]
 
-    def create(self, validated_data):
-        # The post_save signal (signals.py) creates the two ledger legs.
-        return Transfer.objects.create(
-            user=self.context["request"].user, **validated_data
-        )
+    # NOTE: no create() override needed — OwnerViewSet.perform_create
+    # supplies the user, and the post_save signal creates the ledger legs.
 
 
 class RecurringTransactionSerializer(
@@ -251,10 +252,14 @@ class BudgetSerializer(CleanModelMixin, _UserScopedMixin, serializers.ModelSeria
         return obj._progress_cache
 
     def get_spent(self, obj):
-        return str(self._progress(obj)[0])
+        from .services import money_str
+
+        return money_str(self._progress(obj)[0])
 
     def get_remaining(self, obj):
-        return str(self._progress(obj)[1])
+        from .services import money_str
+
+        return money_str(self._progress(obj)[1])
 
     def get_percent_used(self, obj):
         return self._progress(obj)[2]
@@ -313,10 +318,14 @@ class GoalSerializer(CleanModelMixin, _UserScopedMixin, serializers.ModelSeriali
         ]
 
     def get_current_amount(self, obj):
-        return str(obj.current_amount())
+        from .services import money_str
+
+        return money_str(obj.current_amount())
 
     def get_remaining_amount(self, obj):
-        return str(obj.remaining_amount())
+        from .services import money_str
+
+        return money_str(obj.remaining_amount())
 
     def get_progress_percent(self, obj):
         return obj.progress_percent()
