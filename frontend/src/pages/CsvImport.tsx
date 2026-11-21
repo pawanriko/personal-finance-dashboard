@@ -36,13 +36,13 @@ export function CsvImportPage() {
       if (withMapping) form.append('mapping', JSON.stringify(withMapping));
       return api.postForm<CsvImport>('/csv-imports/', form);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setPreview(data);
       setMapping(data.mapping);
       setSelected(new Set(data.rows.filter((r) => r.selected).map((r) => r.row)));
       setResult(null);
       setError('');
-      void qc.invalidateQueries({ queryKey: ['csv-imports'] });
+      await qc.invalidateQueries({ queryKey: ['csv-imports'] }).catch(() => undefined);
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.detail : 'Upload failed.');
@@ -56,12 +56,14 @@ export function CsvImportPage() {
         selected: [...selected],
       });
     },
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       setResult(res);
-      void qc.invalidateQueries({ queryKey: ['csv-imports'] });
-      void qc.invalidateQueries({ queryKey: ['transactions'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
-      void qc.invalidateQueries({ queryKey: ['accounts'] });
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['csv-imports'] }),
+        qc.invalidateQueries({ queryKey: ['transactions'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+        qc.invalidateQueries({ queryKey: ['accounts'] }),
+      ]);
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.detail : 'Import failed.');

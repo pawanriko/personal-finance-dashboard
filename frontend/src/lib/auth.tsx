@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, ApiError } from './api';
+import { queryClient } from './queryClient';
 import type { User } from './types';
 
 interface AuthCtx {
@@ -68,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Even if the call fails, drop the local session state.
     }
     setUser(null);
+    // Drop every cached query: the next login must not flash the previous
+    // user's lists while its own refetch is in flight.
+    queryClient.clear();
   }
 
   return (

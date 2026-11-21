@@ -70,9 +70,12 @@ function ProfileMenu() {
           <button
             type="button"
             className="nav-link w-full text-left"
-            onClick={() => {
+            // Await the logout POST before navigating: /login bounces back
+            // to / while `user` is still set, which made one logout click
+            // look like it did nothing.
+            onClick={async () => {
               setOpen(false);
-              void logout();
+              await logout();
               navigate('/login');
             }}
           >

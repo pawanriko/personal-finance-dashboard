@@ -34,8 +34,8 @@ function GoalForm({
       if (initial) return api.patch<Goal>(`/goals/${initial.id}/`, payload);
       return api.post<Goal>('/goals/', payload);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['goals'] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['goals'] }).catch(() => undefined);
       onSaved();
     },
     onError: (err) => {
@@ -98,9 +98,11 @@ function GoalDetail({ goal }: { goal: Goal }) {
   const add = useMutation({
     mutationFn: () =>
       api.post('/goal-contributions/', { goal: goal.id, amount, date, note: note.trim() }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['goal-contributions', goal.id] });
-      void qc.invalidateQueries({ queryKey: ['goals'] });
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['goal-contributions', goal.id] }),
+        qc.invalidateQueries({ queryKey: ['goals'] }),
+      ]);
       setAmount('');
       setNote('');
     },
@@ -183,8 +185,8 @@ export function GoalsPage() {
   const list = useQuery({ queryKey: ['goals'], queryFn: () => fetchAll<Goal>('/goals/') });
   const remove = useMutation({
     mutationFn: (id: number) => api.delete(`/goals/${id}/`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['goals'] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['goals'] }).catch(() => undefined);
       setDeleting(null);
       setDetail(null);
     },

@@ -76,10 +76,16 @@ function TransactionForm({
       if (initial) return api.patch<Transaction>(`/transactions/${initial.id}/`, payload);
       return api.post<Transaction>('/transactions/', payload);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['transactions'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
-      void qc.invalidateQueries({ queryKey: ['accounts'] });
+    // Wait for the refetch to land before closing the modal, so the list
+    // behind it already shows the saved row. A fire-and-forget refetch can
+    // lag on a slow connection and the page otherwise looks unchanged.
+    // allSettled: a failed refetch must never strand the modal.
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['transactions'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+        qc.invalidateQueries({ queryKey: ['accounts'] }),
+      ]);
       onSaved();
     },
     onError: (err) => {
@@ -222,10 +228,12 @@ function TransferForm({ accounts, onSaved, onCancel }: { accounts: Account[]; on
         date,
         note: note.trim(),
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['transactions'] });
-      void qc.invalidateQueries({ queryKey: ['accounts'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['transactions'] }),
+        qc.invalidateQueries({ queryKey: ['accounts'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]);
       onSaved();
     },
     onError: (err) => {
@@ -307,21 +315,27 @@ function RecurringSection({ accounts, categories }: { accounts: Account[]; categ
   });
   const generate = useMutation({
     mutationFn: () => api.post<{ created: number }>('/recurring/generate-all-due/', {}),
-    onSuccess: (res) => {
-      void qc.invalidateQueries({ queryKey: ['recurring'] });
-      void qc.invalidateQueries({ queryKey: ['transactions'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async (res) => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['recurring'] }),
+        qc.invalidateQueries({ queryKey: ['transactions'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]);
       alert(`${res.created} transaction(s) generated from due templates.`);
     },
   });
   const toggle = useMutation({
     mutationFn: (r: RecurringTransaction) =>
       api.patch(`/recurring/${r.id}/`, { is_active: !r.is_active }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['recurring'] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['recurring'] }).catch(() => undefined);
+    },
   });
   const remove = useMutation({
     mutationFn: (id: number) => api.delete(`/recurring/${id}/`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['recurring'] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['recurring'] }).catch(() => undefined);
+    },
   });
 
   return (
@@ -421,8 +435,8 @@ function RecurringForm({
         start_date: startDate,
         next_due: startDate,
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['recurring'] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['recurring'] }).catch(() => undefined);
       onSaved();
     },
     onError: (err) => {
@@ -535,10 +549,12 @@ export function TransactionsPage() {
 
   const remove = useMutation({
     mutationFn: (id: number) => api.delete(`/transactions/${id}/`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['transactions'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
-      void qc.invalidateQueries({ queryKey: ['accounts'] });
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['transactions'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+        qc.invalidateQueries({ queryKey: ['accounts'] }),
+      ]);
       setDeleting(null);
     },
   });

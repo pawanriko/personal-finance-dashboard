@@ -29,9 +29,11 @@ function BudgetForm({
       if (initial) return api.patch<Budget>(`/budgets/${initial.id}/`, payload);
       return api.post<Budget>('/budgets/', payload);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['budgets'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['budgets'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]);
       onSaved();
     },
     onError: (err) => {
@@ -106,9 +108,11 @@ export function BudgetsPage() {
   });
   const remove = useMutation({
     mutationFn: (id: number) => api.delete(`/budgets/${id}/`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['budgets'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['budgets'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]);
       setDeleting(null);
     },
   });

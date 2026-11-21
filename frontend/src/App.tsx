@@ -1,5 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { queryClient } from './lib/queryClient';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ThemeProvider } from './lib/theme';
 import { Layout } from './components/Layout';
@@ -13,15 +14,6 @@ import { AccountsPage } from './pages/Accounts';
 import { ReportsPage } from './pages/Reports';
 import { GoalsPage } from './pages/Goals';
 import { SettingsPage } from './pages/Settings';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-    },
-  },
-});
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();

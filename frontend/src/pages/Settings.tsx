@@ -30,8 +30,8 @@ function CategoryForm({
       if (initial) return api.patch<Category>(`/categories/${initial.id}/`, payload);
       return api.post<Category>('/categories/', payload);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categories'] }).catch(() => undefined);
       onSaved();
     },
     onError: (err) => {
@@ -111,20 +111,22 @@ export function SettingsPage() {
 
   const saveProfile = useMutation({
     mutationFn: () => api.patch<Profile>('/profile/', { default_currency: currency }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['profile'] }).catch(() => undefined);
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2000);
-      void qc.invalidateQueries({ queryKey: ['profile'] });
     },
   });
   const seed = useMutation({
     mutationFn: () => api.post<{ default_categories: number }>('/categories/seed-defaults/', {}),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['categories'] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categories'] }).catch(() => undefined);
+    },
   });
   const remove = useMutation({
     mutationFn: (id: number) => api.delete(`/categories/${id}/`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['categories'] }).catch(() => undefined);
       setDeleting(null);
     },
   });

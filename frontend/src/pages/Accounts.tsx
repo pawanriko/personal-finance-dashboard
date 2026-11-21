@@ -36,9 +36,11 @@ function AccountForm({
       if (initial) return api.patch<Account>(`/accounts/${initial.id}/`, payload);
       return api.post<Account>('/accounts/', payload);
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['accounts'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['accounts'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]);
       onSaved();
     },
     onError: (err) => {
@@ -155,9 +157,11 @@ export function AccountsPage() {
   const profile = useQuery({ queryKey: ['profile'], queryFn: () => api.get<{ default_currency: string }>('/profile/') });
   const remove = useMutation({
     mutationFn: (id: number) => api.delete(`/accounts/${id}/`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['accounts'] });
-      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    onSuccess: async () => {
+      await Promise.allSettled([
+        qc.invalidateQueries({ queryKey: ['accounts'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]);
       setDeleting(null);
       setDetail(null);
     },
