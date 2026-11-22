@@ -16,6 +16,11 @@ services:
       && python manage.py migrate
     startCommand: gunicorn finance.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
+      # Pin Python: Render's default (3.14) has no wheel for
+      # psycopg-binary 3.2.6, so the build would fall back to
+      # building it from source. 3.13.5 is what the service runs.
+      - key: PYTHON_VERSION
+        value: "3.13.5"
       - key: DJANGO_DEBUG
         value: "false"
       # Render generates a fresh secret on first deploy; never commit one.
