@@ -553,7 +553,8 @@ export function TransactionsPage() {
   const categoriesQ = useQuery({ queryKey: ['categories'], queryFn: () => fetchAll<Category>('/categories/') });
 
   const queryString = useMemo(
-    () => qs({ search, account, category, type, start, end, page }),
+    () =>
+      qs({ search, account, category, type, start, end, page, include_transfers: 'true' }),
     [search, account, category, type, start, end, page],
   );
   const list = useQuery({
@@ -587,7 +588,7 @@ export function TransactionsPage() {
         <div>
           <h1 className="heading-6">Transactions</h1>
           <p className="body-6" style={{ color: 'var(--muted)' }}>
-            Income and expenses. Transfers are listed separately and never count
+            Income, expenses and transfers. Transfers never count
             as income or spending.
           </p>
         </div>
@@ -686,7 +687,10 @@ export function TransactionsPage() {
                 <tr key={tx.id} className="hover:opacity-90" style={{ background: 'var(--surface)' }}>
                   <td className="table-cell whitespace-nowrap">{fmtDate(tx.date)}</td>
                   <td className="table-cell">
-                    <p className="font-medium">{tx.merchant || '—'}</p>
+                    <p className="font-medium">
+                      {tx.merchant || '—'}
+                      {tx.is_transfer ? <span className="badge badge-grey ml-2">transfer</span> : null}
+                    </p>
                     {tx.notes ? (
                       <p className="max-w-64 truncate caption-5" style={{ color: 'var(--muted)' }}>{tx.notes}</p>
                     ) : null}
@@ -700,12 +704,16 @@ export function TransactionsPage() {
                     {tx.type === 'income' ? '+' : '−'}{fmtMoney(tx.amount)}
                   </td>
                   <td className="table-cell whitespace-nowrap text-right">
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(tx)}>
-                      Edit
-                    </button>{' '}
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(tx)}>
-                      Delete
-                    </button>
+                    {tx.is_transfer ? null : (
+                      <>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(tx)}>
+                          Edit
+                        </button>{' '}
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDeleting(tx)}>
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

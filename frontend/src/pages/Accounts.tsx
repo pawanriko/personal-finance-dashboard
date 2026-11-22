@@ -81,7 +81,7 @@ function AccountForm({
           id="ac-opening"
           className="input"
           type="number"
-          min="0"
+          min={type === 'credit_card' ? undefined : '0'}
           step="0.01"
           inputMode="decimal"
           value={opening}
@@ -89,6 +89,11 @@ function AccountForm({
           required
         />
       </div>
+      {type === 'credit_card' ? (
+        <p className="caption-5" style={{ color: 'var(--muted)' }}>
+          A negative opening balance means the amount already owed on this card.
+        </p>
+      ) : null}
       <p className="caption-5" style={{ color: 'var(--muted)' }}>
         The balance is always computed from the opening balance plus the
         transaction ledger — it can never go stale.
@@ -132,6 +137,9 @@ function AccountHistory({ account }: { account: Account }) {
               <td className="table-cell">
                 {tx.merchant || '—'}
                 {tx.is_transfer ? <span className="badge badge-grey ml-2">transfer</span> : null}
+                {tx.notes ? (
+                  <p className="max-w-64 truncate caption-5" style={{ color: 'var(--muted)' }}>{tx.notes}</p>
+                ) : null}
               </td>
               <td className="table-cell">{tx.category_name ?? '—'}</td>
               <td

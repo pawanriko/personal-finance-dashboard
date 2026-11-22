@@ -118,11 +118,32 @@ class Account(models.Model):
         max_digits=MONEY_MAX_DIGITS,
         decimal_places=MONEY_DECIMAL_PLACES,
         default=ZERO,
-        validators=[MinValueValidator(ZERO)],
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        super().clean()
+        # A negative opening balance means "amount already owed" — only
+        # a credit card may start in the red. Every other account type
+        # must open at zero or above. (The old MinValueValidator(0) on
+        # this field blocked negative credit-card openings entirely,
+        # even though the balance itself already supports going
+        # negative via expenses.)
+        if (
+            self.opening_balance is not None
+            and self.opening_balance < ZERO
+            and self.type != self.Type.CREDIT_CARD
+        ):
+            raise ValidationError(
+                {
+                    "opening_balance": (
+                        "A negative opening balance is only allowed for "
+                        "credit-card accounts (it means the amount owed)."
+                    )
+                }
+            )
 
     class Meta:
         ordering = ["name"]

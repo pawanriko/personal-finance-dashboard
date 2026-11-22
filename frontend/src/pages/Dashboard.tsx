@@ -283,7 +283,10 @@ export function DashboardPage() {
                       aria-hidden
                     />
                     <div className="min-w-0">
-                    <p className="body-5 truncate">{tx.merchant || tx.category_name || 'Transaction'}</p>
+                    <p className="body-5 truncate">
+                      {tx.merchant || tx.category_name || 'Transaction'}
+                      {tx.is_transfer ? <span className="badge badge-grey ml-2">transfer</span> : null}
+                    </p>
                     <p className="caption-5" style={{ color: 'var(--muted)' }}>
                       {fmtDate(tx.date)} · {tx.account_name}
                       {tx.category_name ? ` · ${tx.category_name}` : ''}

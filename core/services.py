@@ -383,8 +383,11 @@ def dashboard_summary(user, start=None, end=None):
     prev_start = prev_end - timedelta(days=length - 1)
     previous = period_totals(user, prev_start, prev_end)
 
+    # Recent activity includes transfer legs (flagged is_transfer=True)
+    # so transfers are visible here, marked as transfers. Income,
+    # expenses and net above still exclude them (see period_totals).
     recent = list(
-        Transaction.objects.filter(user=user, is_transfer=False)
+        Transaction.objects.filter(user=user)
         .select_related("account", "category")
         .order_by("-date", "-created_at")[:10]
     )
