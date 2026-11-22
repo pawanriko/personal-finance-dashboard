@@ -138,7 +138,7 @@ export function DashboardPage() {
           ))}
           {balances.length === 0 ? <p className="hero-balance heading-4 mt-2">—</p> : null}
           <p className="hero-sub caption-5 mt-1">
-            {balances.length} account{balances.length === 1 ? '' : 's'} · {fmtMonthLabel(month)}
+            {d.account_count} account{d.account_count === 1 ? '' : 's'} · {fmtMonthLabel(month)}
           </p>
         </div>
         <Stat

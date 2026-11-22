@@ -408,6 +408,10 @@ def dashboard_summary(user, start=None, end=None):
     return {
         "period": {"start": start.isoformat(), "end": end.isoformat()},
         "total_balances": {k: money_str(v) for k, v in balances.items()},
+        # Real account count: total_balances is keyed by currency, so
+        # len(total_balances) is the number of currencies, not accounts
+        # (4 INR accounts used to show as "1 account").
+        "account_count": len(accounts),
         "income": totals["income"],
         "expenses": totals["expenses"],
         "net": totals["net"],

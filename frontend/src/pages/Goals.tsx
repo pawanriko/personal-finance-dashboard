@@ -198,6 +198,15 @@ export function GoalsPage() {
   const accounts = accountsQ.data ?? [];
   const goals = list.data ?? [];
 
+  // The detail dialog must render the goal from the live query data,
+  // not the snapshot stored in `detail` when the dialog was opened:
+  // after a contribution the ['goals'] query is invalidated and
+  // refetched, but `detail` still held the old current_amount /
+  // progress_percent, so the dialog showed ₹0 / 0% until reopened.
+  const detailGoal = detail
+    ? (goals.find((g) => g.id === detail.id) ?? detail)
+    : null;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -266,9 +275,9 @@ export function GoalsPage() {
           <GoalForm initial={editing} accounts={accounts} onSaved={() => setEditing(null)} onCancel={() => setEditing(null)} />
         </Modal>
       ) : null}
-      {detail ? (
-        <Modal title={detail.name} wide onClose={() => setDetail(null)}>
-          <GoalDetail goal={detail} />
+      {detailGoal ? (
+        <Modal title={detailGoal.name} wide onClose={() => setDetail(null)}>
+          <GoalDetail goal={detailGoal} />
         </Modal>
       ) : null}
       {deleting ? (

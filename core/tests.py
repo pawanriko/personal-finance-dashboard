@@ -855,6 +855,9 @@ class DashboardTests(ApiTestCase):
         self.assertEqual(res.data["expenses"], "920.00")
         self.assertEqual(res.data["net"], "4080.00")
         self.assertEqual(res.data["total_balances"], {"INR": "5520.00"})
+        # Two accounts share the one INR currency: the count is accounts,
+        # not currencies.
+        self.assertEqual(res.data["account_count"], 2)
         by_cat = {
             r["category"]: r["total"]
             for r in res.data["spending_by_category"]

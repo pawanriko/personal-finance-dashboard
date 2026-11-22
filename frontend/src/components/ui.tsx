@@ -56,14 +56,33 @@ export function ProgressRing({
   status?: 'ok' | 'near' | 'over';
   label?: string;
 }) {
-  const clamped = Math.max(0, Math.min(100, percent));
+  // The main arc can only fill one full circle, but the percent itself
+  // must never be clamped: at 120% used the ring used to show "100%"
+  // while the label next to it said 120%. The centre number now shows
+  // the true percent, the main arc stays full once past 100%, and the
+  // overflow (percent - 100) is drawn as a thin outer arc so going over
+  // budget is visibly past full.
+  const display = Math.max(0, percent);
+  const arcPercent = Math.min(100, display);
+  const overflow = Math.max(0, Math.min(100, display - 100));
   const [drawn, setDrawn] = useState(0);
+  const [drawnOverflow, setDrawnOverflow] = useState(0);
   useEffect(() => {
-    const t = window.setTimeout(() => setDrawn(clamped), 60);
+    const t = window.setTimeout(() => {
+      setDrawn(arcPercent);
+      setDrawnOverflow(overflow);
+    }, 60);
     return () => window.clearTimeout(t);
-  }, [clamped]);
+  }, [arcPercent, overflow]);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
+  // The overflow arc sits outside the main ring, so the SVG canvas is
+  // padded out by `pad` and absolutely positioned to stay centred.
+  const pad = stroke + 4;
+  const svgSize = size + pad * 2;
+  const centre = svgSize / 2;
+  const or = r + stroke + 2;
+  const oc = 2 * Math.PI * or;
   const color =
     status === 'over' ? 'var(--danger)' : status === 'near' ? 'var(--near)' : 'var(--accent)';
   return (
@@ -71,17 +90,21 @@ export function ProgressRing({
       className="relative shrink-0"
       style={{ width: size, height: size }}
       role="progressbar"
-      aria-valuenow={Math.round(clamped)}
+      aria-valuenow={Math.round(display)}
       aria-valuemin={0}
-      aria-valuemax={100}
-      aria-label={label ?? `Progress ${Math.round(clamped)} percent`}
+      aria-valuemax={Math.max(100, Math.round(display))}
+      aria-label={label ?? `Progress ${Math.round(display)} percent`}
     >
-      <svg width={size} height={size}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
+      <svg
+        width={svgSize}
+        height={svgSize}
+        style={{ position: 'absolute', left: -pad, top: -pad, overflow: 'visible' }}
+      >
+        <circle cx={centre} cy={centre} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
         <circle
           className="ring-anim"
-          cx={size / 2}
-          cy={size / 2}
+          cx={centre}
+          cy={centre}
           r={r}
           fill="none"
           stroke={color}
@@ -90,9 +113,23 @@ export function ProgressRing({
           strokeDasharray={c}
           strokeDashoffset={c - (drawn / 100) * c}
         />
+        {overflow > 0 ? (
+          <circle
+            className="ring-anim"
+            cx={centre}
+            cy={centre}
+            r={or}
+            fill="none"
+            stroke={color}
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeDasharray={oc}
+            strokeDashoffset={oc - (drawnOverflow / 100) * oc}
+          />
+        ) : null}
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="body-4 tabular-nums">{Math.round(clamped)}%</span>
+        <span className="body-4 tabular-nums">{Math.round(display)}%</span>
       </div>
     </div>
   );

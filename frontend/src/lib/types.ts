@@ -194,6 +194,8 @@ export interface DashboardBudget {
 export interface DashboardSummary {
   period: { start: string; end: string };
   total_balances: Record<string, string>;
+  /** Number of (active) accounts — not the number of currencies. */
+  account_count: number;
   income: string;
   expenses: string;
   net: string;

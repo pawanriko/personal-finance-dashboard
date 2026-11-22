@@ -104,6 +104,19 @@ export function Layout() {
   const { theme, toggle } = useTheme();
   const location = useLocation();
 
+  // The header uses the translucent glass --surface, so once the page
+  // scrolls the text underneath shows through it. Track scrolling and
+  // switch the header to the solid page background (--bg: pure white in
+  // light mode, pure black in dark mode) while scrolled, keeping the
+  // glass look only at the very top of the page.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // Round theme toggle + water ripple: the new theme spreads from the
   // button's centre across the page (both directions).
   const onToggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -124,7 +137,15 @@ export function Layout() {
           theme toggle + profile at the top-right. No sidebar, no rupee logo. */}
       <header
         className="sticky top-0 z-40 border-b shadow-sm"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        style={{
+          background: scrolled ? 'var(--bg)' : 'var(--surface)',
+          borderColor: 'var(--border)',
+          // Glass blur only while unscrolled; once opaque there is
+          // nothing underneath to blur, and the blur must not soften
+          // the solid background back into translucency.
+          backdropFilter: scrolled ? 'none' : 'blur(18px) saturate(1.4)',
+          WebkitBackdropFilter: scrolled ? 'none' : 'blur(18px) saturate(1.4)',
+        }}
       >
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
           <NavLink to="/" end className="topbar-wordmark" aria-label="Personal Finance — home">
