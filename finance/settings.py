@@ -38,6 +38,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.github",
     "rest_framework",
     "core",
 ]
@@ -51,6 +57,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -168,25 +175,64 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
-# --- InsForge OAuth (Google/GitHub sign-in, login-time bridge) --------
-# InsForge is used ONLY at login: the browser SDK signs the user in
-# against InsForge and POSTs the access token to /api/auth/insforge/,
-# where it is verified once (RS256 vs the project's JWKS) and a normal
-# Django session starts. The JSON API itself stays session+CSRF only —
-# no Bearer tokens, no middleware, no cutover flag. With
-# INSFORGE_AUTH_ENABLED off (the default) the endpoint answers 503 and
-# the frontend hides the OAuth buttons. See INSFORGE-PLAN.md.
-INSFORGE_AUTH_ENABLED = (
-    os.environ.get("INSFORGE_AUTH_ENABLED", "false").lower() == "true"
+# --- Django-native auth (InsForge migration, Nov 2026) -----------------
+# Email/username + password stays on Django sessions + CSRF.
+# Google/GitHub sign-in runs through django-allauth with OAuth apps
+# owned by Pawan; credentials come from environment variables only.
+# When a provider pair is absent, its button stays hidden.
+SITE_ID = 1
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+ACCOUNT_LOGIN_METHODS = {"email", "username"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+GITHUB_OAUTH_CLIENT_ID = os.environ.get("GITHUB_OAUTH_CLIENT_ID", "")
+GITHUB_OAUTH_CLIENT_SECRET = os.environ.get("GITHUB_OAUTH_CLIENT_SECRET", "")
+GOOGLE_OAUTH_CONFIGURED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+GITHUB_OAUTH_CONFIGURED = bool(GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET)
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": GOOGLE_OAUTH_CLIENT_ID,
+            "secret": GOOGLE_OAUTH_CLIENT_SECRET,
+            "key": "",
+        },
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    },
+    "github": {
+        "APP": {
+            "client_id": GITHUB_OAUTH_CLIENT_ID,
+            "secret": GITHUB_OAUTH_CLIENT_SECRET,
+            "key": "",
+        },
+        "SCOPE": ["user:email"],
+    },
+}
+
+# Password-reset email. Local/dev prints reset links to the console;
+# production must set EMAIL_HOST and friends or reset mail cannot send.
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend" if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend",
 )
-# The InsForge project URL (the oss_host), e.g.
-# https://<appkey>.us-east.insforge.app — no trailing slash needed.
-INSFORGE_BASE_URL = os.environ.get("INSFORGE_BASE_URL", "").rstrip("/")
-# How long the fetched JWKS document is cached (seconds); a rotated
-# key is still picked up at once via the unknown-kid refetch.
-INSFORGE_JWKS_CACHE_TTL = int(os.environ.get("INSFORGE_JWKS_CACHE_TTL", "3600"))
-# Clock-skew tolerance (seconds) when checking the token expiry.
-INSFORGE_JWT_LEEWAY = int(os.environ.get("INSFORGE_JWT_LEEWAY", "60"))
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() == "true"
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "Personal Finance <no-reply@localhost>"
+)
 
 # --- App-specific limits ----------------------------------------------------
 # CSV uploads: only .csv, at most 5 MB (enforced in the import view).

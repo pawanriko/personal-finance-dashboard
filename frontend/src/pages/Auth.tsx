@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { insforgeSignInWithOAuth, isInsforgeConfigured } from '../lib/insforge';
 import { FieldError, TaglineReveal } from '../components/ui';
 
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
@@ -62,9 +61,8 @@ function GitHubMark() {
   );
 }
 
-/** Google/GitHub sign-in buttons (InsForge OAuth). Hidden entirely
- * until the InsForge env vars are set at build time — with them unset
- * the app works exactly as before on username + password. */
+/** Google/GitHub sign-in buttons (django-allauth). Hidden until the
+ * matching OAuth env pair is set on the backend. */
 function OAuthButtons({
   disabled,
   onError,
@@ -73,12 +71,13 @@ function OAuthButtons({
   onError: (message: string) => void;
 }) {
   const [busyProvider, setBusyProvider] = useState<'google' | 'github' | null>(null);
-  if (!isInsforgeConfigured()) return null;
+  const { providers, startOAuth } = useAuth();
+  if (providers.length === 0) return null;
 
   async function start(provider: 'google' | 'github') {
     setBusyProvider(provider);
     try {
-      await insforgeSignInWithOAuth(provider);
+      await startOAuth(provider);
       // The browser leaves for the provider here; the lines below
       // only run if the redirect never happens.
     } catch (err) {
@@ -91,6 +90,7 @@ function OAuthButtons({
   return (
     <>
       <div className="flex flex-col gap-2">
+        {providers.includes('google') && (
         <button
           type="button"
           className="btn btn-ghost w-full"
@@ -102,6 +102,8 @@ function OAuthButtons({
             ? 'Redirecting to Google…'
             : 'Continue with Google'}
         </button>
+        )}
+        {providers.includes('github') && (
         <button
           type="button"
           className="btn btn-ghost w-full"
@@ -113,6 +115,7 @@ function OAuthButtons({
             ? 'Redirecting to GitHub…'
             : 'Continue with GitHub'}
         </button>
+        )}
       </div>
       <div className="my-4 flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
@@ -126,37 +129,12 @@ function OAuthButtons({
 }
 
 export function LoginPage() {
-  const { user, login, insforgeLogin } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [oauthBusy, setOauthBusy] = useState(false);
-
-  // Google/GitHub callback: InsForge redirects back here with
-  // ?insforge_code=... — exchange it for a Django session.
-  useEffect(() => {
-    if (!searchParams.has('insforge_code')) return;
-    // Drop the code from the URL first so a reload never replays it.
-    window.history.replaceState(null, '', '/login');
-    setOauthBusy(true);
-    insforgeLogin()
-      .then(() => navigate('/', { replace: true }))
-      .catch((err: unknown) => {
-        setError(
-          err instanceof ApiError
-            ? err.detail
-            : err instanceof Error
-              ? err.message
-              : 'Google/GitHub sign-in failed.',
-        );
-      })
-      .finally(() => setOauthBusy(false));
-    // Run once on mount — the code param is consumed above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -176,15 +154,10 @@ export function LoginPage() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to your finance dashboard.">
-      <OAuthButtons disabled={busy || oauthBusy} onError={setError} />
-      {oauthBusy && (
-        <p className="mb-4 text-center body-6" style={{ color: 'var(--muted)' }}>
-          Completing your Google/GitHub sign-in…
-        </p>
-      )}
+      <OAuthButtons disabled={busy} onError={setError} />
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div>
-          <label className="label" htmlFor="login-username">Username</label>
+          <label className="label" htmlFor="login-username">Username or email</label>
           <input
             id="login-username"
             className="input"
@@ -211,6 +184,12 @@ export function LoginPage() {
           {busy ? 'Logging in…' : 'Log in'}
         </button>
       </form>
+      <p className="body-6 mt-4 text-center" style={{ color: 'var(--muted)' }}>
+        Forgot your password, or signed in with Google/GitHub before?{' '}
+        <Link to="/forgot-password" className="font-medium" style={{ color: 'var(--accent)' }}>
+          Set a new password
+        </Link>
+      </p>
       <p className="body-6 mt-4 text-center" style={{ color: 'var(--muted)' }}>
         No account yet?{' '}
         <Link to="/register" className="font-medium" style={{ color: 'var(--accent)' }}>
@@ -297,6 +276,138 @@ export function RegisterPage() {
         Already have an account?{' '}
         <Link to="/login" className="font-medium" style={{ color: 'var(--accent)' }}>
           Log in
+        </Link>
+      </p>
+    </AuthShell>
+  );
+}
+
+export function ForgotPasswordPage() {
+  const { passwordReset } = useAuth();
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setBusy(true);
+    try {
+      setMessage(await passwordReset(email.trim()));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : 'Could not send the reset link.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AuthShell
+      title="Set a new password"
+      subtitle="Enter your account email and we will send a reset link."
+    >
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <div>
+          <label className="label" htmlFor="forgot-email">Email</label>
+          <input
+            id="forgot-email"
+            className="input"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <FieldError message={error} />
+        {message && <p className="body-6" style={{ color: 'var(--muted)' }}>{message}</p>}
+        <button type="submit" className="btn btn-primary w-full" disabled={busy}>
+          {busy ? 'Sending…' : 'Send reset link'}
+        </button>
+      </form>
+      <p className="body-6 mt-4 text-center" style={{ color: 'var(--muted)' }}>
+        Remembered it?{' '}
+        <Link to="/login" className="font-medium" style={{ color: 'var(--accent)' }}>
+          Log in
+        </Link>
+      </p>
+    </AuthShell>
+  );
+}
+
+export function ResetPasswordPage() {
+  const { passwordResetConfirm } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const detail = await passwordResetConfirm(
+        searchParams.get('uid') ?? '',
+        searchParams.get('token') ?? '',
+        password,
+      );
+      setMessage(detail);
+      setTimeout(() => navigate('/login', { replace: true }), 1200);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : 'Could not save the new password.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AuthShell title="Choose a new password" subtitle="Pick a strong password for your account.">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <div>
+          <label className="label" htmlFor="reset-password">New password</label>
+          <input
+            id="reset-password"
+            className="input"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="reset-confirm">Confirm password</label>
+          <input
+            id="reset-confirm"
+            className="input"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+          />
+        </div>
+        <FieldError message={error} />
+        {message && <p className="body-6" style={{ color: 'var(--muted)' }}>{message}</p>}
+        <button type="submit" className="btn btn-primary w-full" disabled={busy}>
+          {busy ? 'Saving…' : 'Save password'}
+        </button>
+      </form>
+      <p className="body-6 mt-4 text-center" style={{ color: 'var(--muted)' }}>
+        Link expired?{' '}
+        <Link to="/forgot-password" className="font-medium" style={{ color: 'var(--accent)' }}>
+          Request a new one
         </Link>
       </p>
     </AuthShell>

@@ -56,37 +56,28 @@ All secrets come from environment variables (see `.env.example`):
 | `DATABASE_URL` | `postgres://user:pass@host:port/db` — empty means local SQLite |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Origins allowed to POST (default: Vite dev server on :5173) |
 | `CSV_UPLOAD_MAX_BYTES` | Max CSV upload size (default 5 MB) |
-| `INSFORGE_AUTH_ENABLED` | `true` turns on Google/GitHub sign-in (default `false`) |
-| `INSFORGE_BASE_URL` | InsForge project URL, e.g. `https://<appkey>.us-east.insforge.app` |
-| `VITE_INSFORGE_URL` | Same project URL, for the browser (build-time) |
-| `VITE_INSFORGE_ANON_KEY` | InsForge anon/public key (browser-safe) |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Google sign-in (both needed for the button) |
+| `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | GitHub sign-in (both needed for the button) |
+| `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` / `EMAIL_USE_TLS` / `DEFAULT_FROM_EMAIL` | Password-reset mail (production) |
 
-## Google/GitHub sign-in (InsForge)
+## Google/GitHub sign-in (django-allauth)
 
-Optional — password login works without any of this. InsForge is used
-only at login: the browser signs in against InsForge (Google or GitHub
-OAuth) and the backend verifies the access token once, then starts a
-normal Django session. The API itself stays session + CSRF only.
+Optional — password login works without any of this. Google/GitHub
+sign-in runs through django-allauth under `/accounts/` and ends in a
+normal Django session; the API stays session + CSRF only.
 
-1. Create a **new** InsForge project for this app (do not reuse another
-   app's project). In the InsForge console enable the **Google** and
-   **GitHub** providers and add the allowed redirect URL
-   `https://<app>.onrender.com/login` (plus `http://localhost:5173/login`
-   for local dev).
-2. On Render set `INSFORGE_BASE_URL`, `VITE_INSFORGE_URL` (same URL),
-   `VITE_INSFORGE_ANON_KEY`, and flip `INSFORGE_AUTH_ENABLED` to
-   `true` — the Vite vars must be set **before** the deploy that
-   builds the frontend, or the buttons stay hidden.
-3. Redeploy. The login and sign-up pages show "Continue with Google"
-   and "Continue with GitHub". First OAuth sign-in creates the Django
-   account automatically (username from the email, unusable password).
-   If the email already belongs to a password account, the sign-in is
-   refused (409) — sign in with the password instead; accounts are
-   never linked silently.
-
-Notes: a paused InsForge project (free tier, 1 week inactive) only
-disables the OAuth buttons — password login keeps working. The
-InsForge access token is verified once at login and never stored.
+1. Create your own Google and GitHub OAuth apps. Callback URLs:
+   `https://<app>.onrender.com/accounts/google/login/callback/` and
+   `https://<app>.onrender.com/accounts/github/login/callback/`
+   (use `http://localhost:8000/...` equivalents for local dev).
+2. Set the matching `GOOGLE_OAUTH_*` / `GITHUB_OAUTH_*` env vars on
+   Render. A provider button appears only when both of its values are
+   set — no frontend rebuild variables are needed.
+3. First OAuth sign-in creates the Django account automatically. If
+   the provider email (verified) matches an existing account, the
+   sign-in connects to that account, keeping its data. Users without
+   a password can set one through "Set a new password" on the login
+   page (needs the `EMAIL_*` vars in production).
 
 ## Deployment (Render + Neon, free)
 

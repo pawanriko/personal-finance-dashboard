@@ -30,7 +30,16 @@ urlpatterns = [
     path("auth/csrf/", views.csrf_view, name="auth-csrf"),
     path("auth/register/", views.register_view, name="auth-register"),
     path("auth/login/", views.login_view, name="auth-login"),
-    path("auth/insforge/", views.insforge_login_view, name="auth-insforge"),
+    path(
+        "auth/password-reset/",
+        views.password_reset_request_view,
+        name="auth-password-reset",
+    ),
+    path(
+        "auth/password-reset/confirm/",
+        views.password_reset_confirm_view,
+        name="auth-password-reset-confirm",
+    ),
     path("auth/logout/", views.logout_view, name="auth-logout"),
     path("auth/me/", views.me_view, name="auth-me"),
     path("profile/", views.ProfileView.as_view(), name="profile"),

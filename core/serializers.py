@@ -393,6 +393,16 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("A user with that username exists.")
         return value
 
+    def validate_email(self, value):
+        # Never let registration claim an email that already belongs
+        # to an account (e.g. one created through Google/GitHub).
+        if value and User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "An account with this email already exists. "
+                "Log in, or reset your password."
+            )
+        return value
+
     def create(self, validated_data):
         return User.objects.create_user(
             username=validated_data["username"],

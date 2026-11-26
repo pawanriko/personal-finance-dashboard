@@ -5,12 +5,9 @@ gunicorn==27.0.1
 psycopg[binary]==3.2.6
 python-dateutil==2.9.0
 whitenoise==6.12.0
-# HTTP client: fetches the InsForge JWKS document (see
-# core/insforge_auth.py) — the only place the server calls InsForge.
+# Google/GitHub sign-in (django-allauth). PyJWT + cryptography verify
+# Google ID tokens; requests talks to the OAuth providers.
+django-allauth==65.20.1
 requests==2.34.2
-# InsForge JWT auth: PyJWT verifies RS256 access tokens against the
-# project's JWKS endpoint (see core/insforge_auth.py). The [crypto]
-# extra brings in `cryptography`, which does the RSA verification.
-# `requests` (pinned above) fetches the JWKS document.
 PyJWT[crypto]==2.15.1
 cryptography==50.0.2

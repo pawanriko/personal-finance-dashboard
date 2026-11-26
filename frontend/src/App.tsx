@@ -6,7 +6,7 @@ import { ThemeProvider } from './lib/theme';
 import { CursorGlow } from './components/CursorGlow';
 import { Layout } from './components/Layout';
 import { Spinner } from './components/ui';
-import { LoginPage, RegisterPage } from './pages/Auth';
+import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from './pages/Auth';
 import { NotFoundPage } from './pages/NotFound';
 import { DashboardPage } from './pages/Dashboard';
 import { TransactionsPage } from './pages/Transactions';
@@ -41,6 +41,8 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
                 element={
                   <RequireAuth>

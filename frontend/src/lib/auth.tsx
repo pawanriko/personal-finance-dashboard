@@ -1,23 +1,18 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, ApiError } from './api';
-import {
-  completeInsforgeSession,
-  insforgeSignOut,
-  isInsforgeConfigured,
-} from './insforge';
 import { queryClient } from './queryClient';
 import type { User } from './types';
 
 interface AuthCtx {
   user: User | null;
   loading: boolean;
+  providers: string[];
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
-  /** Complete a Google/GitHub sign-in: exchange the InsForge OAuth
-   * callback for a Django session. Throws when there is no InsForge
-   * session to complete. */
-  insforgeLogin: () => Promise<void>;
+  startOAuth: (provider: 'google' | 'github') => Promise<void>;
+  passwordReset: (email: string) => Promise<string>;
+  passwordResetConfirm: (uid: string, token: string, password: string) => Promise<string>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -25,22 +20,32 @@ interface AuthCtx {
 const AuthContext = createContext<AuthCtx>({
   user: null,
   loading: true,
+  providers: [],
   login: async () => {},
   register: async () => {},
-  insforgeLogin: async () => {},
+  startOAuth: async () => {},
+  passwordReset: async () => '',
+  passwordResetConfirm: async () => '',
   logout: async () => {},
   refresh: async () => {},
 });
 
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [providers, setProviders] = useState<string[]>([]);
 
   async function refresh() {
     try {
       // Touch the CSRF endpoint first so the cookie exists for the
       // session check and any later mutating request.
-      await api.get('/auth/csrf/');
+      const csrf = await api.get<{ providers?: string[] }>('/auth/csrf/');
+      setProviders(csrf.providers ?? []);
       const me = await api.get<User>('/auth/me/');
       setUser(me);
     } catch (err) {
@@ -72,18 +77,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me);
   }
 
-  async function insforgeLogin() {
-    const token = await completeInsforgeSession();
-    if (!token) {
-      throw new Error(
-        'Google/GitHub sign-in did not return a session. Please try again.',
-      );
-    }
+  async function startOAuth(provider: 'google' | 'github') {
     await api.get('/auth/csrf/');
-    const me = await api.post<User>('/auth/insforge/', {
-      access_token: token,
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/accounts/${provider}/login/`;
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrfmiddlewaretoken';
+    csrf.value = getCsrfToken() ?? '';
+    form.appendChild(csrf);
+    const next = document.createElement('input');
+    next.type = 'hidden';
+    next.name = 'next';
+    next.value = '/';
+    form.appendChild(next);
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  async function passwordReset(email: string) {
+    await api.get('/auth/csrf/');
+    const data = await api.post<{ detail: string }>('/auth/password-reset/', { email });
+    return data.detail;
+  }
+
+  async function passwordResetConfirm(uid: string, token: string, password: string) {
+    await api.get('/auth/csrf/');
+    const data = await api.post<{ detail: string }>('/auth/password-reset/confirm/', {
+      uid,
+      token,
+      password,
     });
-    setUser(me);
+    return data.detail;
   }
 
   async function logout() {
@@ -96,16 +122,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Drop every cached query: the next login must not flash the previous
     // user's lists while its own refetch is in flight.
     queryClient.clear();
-    // Drop the InsForge session too (best effort, non-blocking —
-    // the Django logout above is what gates the app).
-    if (isInsforgeConfigured()) {
-      void insforgeSignOut();
-    }
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, insforgeLogin, logout, refresh }}
+      value={{
+        user,
+        loading,
+        providers,
+        login,
+        register,
+        startOAuth,
+        passwordReset,
+        passwordResetConfirm,
+        logout,
+        refresh,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -8,6 +8,13 @@ from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
+from django.core.validators import validate_email
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.db.models import DecimalField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
@@ -20,12 +27,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .insforge_auth import (
-    InsforgeAuthError,
-    InsforgeEmailCollision,
-    resolve_user,
-    verify_token,
-)
 from .models import (
     ZERO,
     Account,
@@ -468,11 +469,22 @@ class ReportExportView(APIView):
 # Auth (session + CSRF) and profile
 # ---------------------------------------------------------------------------
 
+def _configured_providers():
+    providers = []
+    if getattr(settings, "GOOGLE_OAUTH_CONFIGURED", False):
+        providers.append("google")
+    if getattr(settings, "GITHUB_OAUTH_CONFIGURED", False):
+        providers.append("github")
+    return providers
+
+
 @api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 @ensure_csrf_cookie
 def csrf_view(request):
-    return Response({"detail": "CSRF cookie set."})
+    return Response(
+        {"detail": "CSRF cookie set.", "providers": _configured_providers()}
+    )
 
 
 @api_view(["POST"])
@@ -481,7 +493,7 @@ def register_view(request):
     serializer = RegisterSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
-    login(request, user)
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
@@ -490,11 +502,17 @@ def register_view(request):
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    user = authenticate(
-        request,
-        username=serializer.validated_data["username"],
-        password=serializer.validated_data["password"],
-    )
+    identifier = serializer.validated_data["username"].strip()
+    password = serializer.validated_data["password"]
+    user = authenticate(request, username=identifier, password=password)
+    if user is None:
+        # Accept the account email too, so users who set a password
+        # through the reset flow can sign in with the address they know.
+        candidate = User.objects.filter(email__iexact=identifier).first()
+        if candidate is not None:
+            user = authenticate(
+                request, username=candidate.username, password=password
+            )
     if user is None:
         return Response(
             {"detail": "Invalid username or password."},
@@ -506,45 +524,67 @@ def login_view(request):
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
-def insforge_login_view(request):
-    """Log in with an InsForge access token (Google/GitHub OAuth).
-
-    The React app signs the user in against InsForge in the browser
-    and sends the resulting access token here. The token is verified
-    once (RS256 vs the project's JWKS) and the Django user is found
-    or created by ``insforge_sub``; then a normal Django session
-    starts, exactly as after a password login. The token itself is
-    never logged and never stored.
-
-    Dormant until configured: with INSFORGE_AUTH_ENABLED off (or no
-    INSFORGE_BASE_URL) this answers 503. Email collision with an
-    unlinked Django account answers 409 — the user signs in with
-    their password instead; the link is never made silently.
-    """
-    if not getattr(
-        settings, "INSFORGE_AUTH_ENABLED", False
-    ) or not getattr(settings, "INSFORGE_BASE_URL", ""):
-        return Response(
-            {"detail": "InsForge sign-in is not enabled."},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+def password_reset_request_view(request):
+    """Email a password-reset link. The response is identical whether
+    or not the email has an account, so it cannot probe accounts.
+    This is also how users created through Google/GitHub (no usable
+    password) set a first password."""
+    generic = {
+        "detail": "If an account exists for that email, a password reset link has been sent."
+    }
+    email = (request.data.get("email") or "").strip().lower()
+    try:
+        validate_email(email)
+    except DjangoValidationError:
+        return Response(generic)
+    user = User.objects.filter(email__iexact=email, is_active=True).first()
+    if user is not None:
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_url = request.build_absolute_uri(
+            f"/reset-password?uid={uid}&token={token}"
         )
-    token = request.data.get("access_token")
-    if not token or not isinstance(token, str):
+        send_mail(
+            "Set your Personal Finance password",
+            "Use this link to set a new Personal Finance password:\n\n"
+            f"{reset_url}\n\n"
+            "If you did not request this, ignore this email.",
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=True,
+        )
+    return Response(generic)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+def password_reset_confirm_view(request):
+    uid = request.data.get("uid") or ""
+    token = request.data.get("token") or ""
+    password = request.data.get("password") or ""
+    try:
+        user_pk = force_str(urlsafe_base64_decode(uid))
+        user = User.objects.get(pk=user_pk)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         return Response(
-            {"detail": "access_token is required."},
+            {"detail": "This reset link is invalid or has expired."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not default_token_generator.check_token(user, token):
+        return Response(
+            {"detail": "This reset link is invalid or has expired."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     try:
-        user = resolve_user(verify_token(token))
-    except InsforgeEmailCollision as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
-    except InsforgeAuthError:
+        validate_password(password, user=user)
+    except DjangoValidationError as exc:
         return Response(
-            {"detail": "Invalid or expired InsForge token."},
-            status=status.HTTP_401_UNAUTHORIZED,
+            {"detail": " ".join(exc.messages)},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-    login(request, user)
-    return Response(UserSerializer(user).data)
+    user.set_password(password)
+    user.save(update_fields=["password"])
+    return Response({"detail": "Password updated. Log in with your new password."})
 
 
 @api_view(["POST"])

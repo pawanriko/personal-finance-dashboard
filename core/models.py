@@ -70,12 +70,11 @@ class Profile(models.Model):
 
 
 class InsforgeIdentity(models.Model):
-    """One row per Django user that has signed in via InsForge OAuth.
+    """Legacy link to a user's pre-migration InsForge identity.
 
-    ``sub`` is the InsForge user id — the ``sub`` claim of the JWT.
-    It is the stable anchor: emails can change, the sub cannot.
-    ``email`` is a copy of the token's email at link time; the live
-    email always comes from the token. See core/insforge_auth.py.
+    Kept after the Nov 2026 move to Django-native auth so the
+    email/sub mapping from the InsForge era is not lost. Nothing
+    authenticates through this table any more.
     """
 
     user = models.OneToOneField(
@@ -118,32 +117,11 @@ class Account(models.Model):
         max_digits=MONEY_MAX_DIGITS,
         decimal_places=MONEY_DECIMAL_PLACES,
         default=ZERO,
+        validators=[MinValueValidator(ZERO)],
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    def clean(self):
-        super().clean()
-        # A negative opening balance means "amount already owed" — only
-        # a credit card may start in the red. Every other account type
-        # must open at zero or above. (The old MinValueValidator(0) on
-        # this field blocked negative credit-card openings entirely,
-        # even though the balance itself already supports going
-        # negative via expenses.)
-        if (
-            self.opening_balance is not None
-            and self.opening_balance < ZERO
-            and self.type != self.Type.CREDIT_CARD
-        ):
-            raise ValidationError(
-                {
-                    "opening_balance": (
-                        "A negative opening balance is only allowed for "
-                        "credit-card accounts (it means the amount owed)."
-                    )
-                }
-            )
 
     class Meta:
         ordering = ["name"]

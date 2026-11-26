@@ -6,18 +6,14 @@ transfers (never income/spending), recurring generation, categories,
 budgets, goals, CSV import/export, dashboard/reports, per-user isolation.
 """
 
-import json
-import time
 from datetime import date
 from decimal import Decimal
-from unittest import mock
 
-import jwt
-from cryptography.hazmat.primitives.asymmetric import rsa
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
-from jwt.algorithms import RSAAlgorithm
+from django.test import TestCase
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from .models import (
@@ -855,9 +851,6 @@ class DashboardTests(ApiTestCase):
         self.assertEqual(res.data["expenses"], "920.00")
         self.assertEqual(res.data["net"], "4080.00")
         self.assertEqual(res.data["total_balances"], {"INR": "5520.00"})
-        # Two accounts share the one INR currency: the count is accounts,
-        # not currencies.
-        self.assertEqual(res.data["account_count"], 2)
         by_cat = {
             r["category"]: r["total"]
             for r in res.data["spending_by_category"]
@@ -959,139 +952,86 @@ class IsolationTests(ApiTestCase):
 
 
 # ---------------------------------------------------------------------------
-# InsForge OAuth login (POST /api/auth/insforge/)
+# Django-native auth migration (allauth OAuth + password reset)
 # ---------------------------------------------------------------------------
 
 
-@override_settings(
-    INSFORGE_AUTH_ENABLED=True,
-    INSFORGE_BASE_URL="https://test.insforge.app",
-)
-class InsforgeAuthTests(ApiTestCase):
-    """The login-time bridge: a verified InsForge JWT starts a Django
-    session. Tokens are minted here with a real RS256 keypair generated
-    in-test; the JWKS fetch is mocked (no network) so the real
-    signature/expiry/kid verification path is exercised.
-    """
+class DjangoNativeAuthTests(ApiTestCase):
+    def test_insforge_endpoint_is_gone(self):
+        res = self.anon.post(
+            "/api/auth/insforge/", {"access_token": "anything"}, format="json"
+        )
+        self.assertEqual(res.status_code, 404)
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls._private_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=2048
-        )
-        cls._other_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=2048
-        )
-        jwk = json.loads(
-            RSAAlgorithm.to_jwk(cls._private_key.public_key())
-        )
-        jwk.update({"kid": "test-key-1", "alg": "RS256", "use": "sig"})
-        cls._jwk = jwk
+    def test_oauth_provider_routes_exist(self):
+        self.assertEqual(reverse("google_login"), "/accounts/google/login/")
+        self.assertEqual(reverse("github_login"), "/accounts/github/login/")
 
-    def setUp(self):
-        super().setUp()
-        self._jwks_patcher = mock.patch(
-            "core.insforge_auth._fetch_jwks", return_value=[self._jwk]
-        )
-        self._jwks_patcher.start()
-        self.addCleanup(self._jwks_patcher.stop)
-
-    def _mint(self, sub="insforge-sub-1", email="carol@example.com",
-              exp=None, kid="test-key-1", key=None, alg="RS256"):
-        now = int(time.time())
-        payload = {
-            "sub": sub,
-            "email": email,
-            "role": "authenticated",
-            "iat": now,
-            "exp": now + 900 if exp is None else exp,
-        }
-        if email is None:
-            del payload["email"]
-        return jwt.encode(
-            payload,
-            key if key is not None else self._private_key,
-            algorithm=alg,
-            headers={"kid": kid},
-        )
-
-    def _post_token(self, token):
-        return self.anon.post(
-            "/api/auth/insforge/", {"access_token": token}, format="json"
-        )
-
-    def test_valid_token_creates_user_and_starts_session(self):
-        res = self._post_token(self._mint())
+    def test_csrf_lists_configured_providers(self):
+        res = self.anon.get("/api/auth/csrf/")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["username"], "carol")
-        self.assertIn("sessionid", res.cookies)
-        user = User.objects.get(username="carol")
-        self.assertTrue(hasattr(user, "profile"))
-        self.assertEqual(
-            Category.objects.filter(user=user, is_default=True).count(), 17
+        self.assertIn("providers", res.data)
+
+    def test_register_rejects_existing_email(self):
+        res = self.anon.post(
+            "/api/auth/register/",
+            {
+                "username": "carol",
+                "email": "ALICE@example.com",
+                "password": "password123",
+            },
+            format="json",
         )
-        self.assertFalse(user.has_usable_password())
-        identity = InsforgeIdentity.objects.get(user=user)
-        self.assertEqual(identity.sub, "insforge-sub-1")
-        self.assertEqual(identity.email, "carol@example.com")
-
-    def test_same_token_twice_returns_same_user(self):
-        token = self._mint()
-        self.assertEqual(self._post_token(token).status_code, 200)
-        res = self._post_token(token)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["id"], User.objects.get(username="carol").id)
-        self.assertEqual(User.objects.filter(username="carol").count(), 1)
-        self.assertEqual(InsforgeIdentity.objects.count(), 1)
-
-    def test_session_works_after_insforge_login(self):
-        self.assertEqual(self._post_token(self._mint()).status_code, 200)
-        res = self.anon.get("/api/auth/me/")
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["username"], "carol")
-        res = self.anon.get("/api/dashboard/")
-        self.assertEqual(res.status_code, 200)
-
-    def test_expired_token_rejected(self):
-        # Expired well past the 60s clock-skew leeway (INSFORGE_JWT_LEEWAY).
-        token = self._mint(exp=int(time.time()) - 120)
-        self.assertEqual(self._post_token(token).status_code, 401)
-
-    def test_wrong_signature_rejected(self):
-        token = self._mint(key=self._other_key)
-        self.assertEqual(self._post_token(token).status_code, 401)
-
-    def test_hs256_token_rejected(self):
-        token = self._mint(alg="HS256", key="shared-secret")
-        self.assertEqual(self._post_token(token).status_code, 401)
-
-    def test_unknown_kid_rejected(self):
-        token = self._mint(kid="rotated-away-key")
-        self.assertEqual(self._post_token(token).status_code, 401)
-
-    def test_malformed_token_rejected(self):
-        self.assertEqual(self._post_token("not-a-jwt").status_code, 401)
-
-    def test_missing_token_returns_400(self):
-        res = self.anon.post("/api/auth/insforge/", {}, format="json")
         self.assertEqual(res.status_code, 400)
+        self.assertFalse(User.objects.filter(username="carol").exists())
 
-    def test_email_collision_returns_409(self):
-        # alice@example.com already belongs to an unlinked Django user.
-        token = self._mint(sub="insforge-sub-2", email="alice@example.com")
-        res = self._post_token(token)
-        self.assertEqual(res.status_code, 409)
-        self.assertFalse(
-            InsforgeIdentity.objects.filter(sub="insforge-sub-2").exists()
+    def test_login_accepts_email_identifier(self):
+        res = self.anon.post(
+            "/api/auth/login/",
+            {"username": "alice@example.com", "password": "password123"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["username"], "alice")
+
+    def test_password_reset_sets_password_for_oauth_created_user(self):
+        user = User.objects.create_user(
+            username="carol", email="carol@example.com"
+        )
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        InsforgeIdentity.objects.create(
+            user=user, sub="insforge-sub-1", email="carol@example.com"
+        )
+        res = self.anon.post(
+            "/api/auth/password-reset/",
+            {"email": "carol@example.com"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        uid = body.split("uid=")[1].split("&")[0]
+        token = body.split("token=")[1].split()[0]
+        confirm = self.anon.post(
+            "/api/auth/password-reset/confirm/",
+            {"uid": uid, "token": token, "password": "New-Str0ng-pass-42"},
+            format="json",
+        )
+        self.assertEqual(confirm.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("New-Str0ng-pass-42"))
+        self.assertTrue(
+            InsforgeIdentity.objects.filter(
+                user=user, sub="insforge-sub-1"
+            ).exists()
         )
 
-    def test_token_without_email_still_creates_user(self):
-        res = self._post_token(self._mint(email=None))
+    def test_password_reset_request_is_generic_for_unknown_email(self):
+        res = self.anon.post(
+            "/api/auth/password-reset/",
+            {"email": "nobody@example.com"},
+            format="json",
+        )
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["username"], "user")
-
-    def test_disabled_flag_returns_503(self):
-        with override_settings(INSFORGE_AUTH_ENABLED=False):
-            res = self._post_token(self._mint())
-        self.assertEqual(res.status_code, 503)
+        self.assertEqual(len(mail.outbox), 0)

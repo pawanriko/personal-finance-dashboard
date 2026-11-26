@@ -34,17 +34,26 @@ services:
         sync: false
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
         sync: false
-      # InsForge OAuth (Google/GitHub sign-in): fill these in after
-      # creating the InsForge project (see README "Google/GitHub
-      # sign-in (InsForge)"). The buttons stay hidden until both
-      # VITE_ vars are present at build time; backend + frontend use
-      # the same project URL. Flip ENABLED to "true" only once the
-      # project exists.
-      - key: INSFORGE_AUTH_ENABLED
-        value: "false"
-      - key: INSFORGE_BASE_URL
+      # Google/GitHub sign-in (django-allauth): create the OAuth apps
+      # yourself and fill these in. Buttons stay hidden until a pair
+      # is set. Password-reset mail needs the EMAIL_* vars.
+      - key: GOOGLE_OAUTH_CLIENT_ID
         sync: false
-      - key: VITE_INSFORGE_URL
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
         sync: false
-      - key: VITE_INSFORGE_ANON_KEY
+      - key: GITHUB_OAUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "true"
+      - key: DEFAULT_FROM_EMAIL
         sync: false
